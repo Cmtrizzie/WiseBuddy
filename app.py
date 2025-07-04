@@ -10,7 +10,7 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 # Page config
 st.set_page_config(page_title="WiseBuddy", layout="centered")
 
-# 🌟 Daily Random Quote (shown once at top)
+# 🌟 Daily Random Quote
 quotes = [
     "Believe you can and you're halfway there.",
     "Success is not final, failure is not fatal: it is the courage to continue that counts.",
@@ -28,7 +28,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Initialize chat history in session state
+# Initialize chat history
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
@@ -52,21 +52,20 @@ with col1:
 with col2:
     send_clicked = st.button("Send")
 
-# Process user message
+# Process user message safely
 if send_clicked and user_input:
     with st.spinner("WiseBuddy is thinking..."):
         prompt = f"You are WiseBuddy, giving advice about {category}. Respond to: {user_input}"
         response = model.generate_content(prompt)
         reply = response.text
 
-        # Update chat history
         st.session_state.chat_history.append(("You", user_input))
         st.session_state.chat_history.append(("WiseBuddy", reply))
 
-    # Refresh safely to clear input without error
+    # Just rerun the app to clear input safely
     st.experimental_rerun()
 
-# 🖥️ Scrollable chat area (fixed height box)
+# 🖥️ Scrollable chat box
 st.markdown("""
 <div style='max-height:400px; overflow-y: auto; padding:10px; border:1px solid #ddd; border-radius:10px; background-color:#fff;'>
 """, unsafe_allow_html=True)
