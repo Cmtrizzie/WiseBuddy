@@ -2,43 +2,58 @@ import streamlit as st
 import google.generativeai as genai
 import random
 import time
-import os
+import os # Not strictly needed if using st.secrets
 
 # 👉 Streamlit Page Setup
 st.set_page_config(page_title="WiseBuddy 🧠", page_icon="🤖", layout="centered")
 
 # 👉 API Key Setup
 st.markdown("### 🔑 Gemini API Key Setup")
-api_key = st.text_input("Enter your Gemini API key:", type="password", 
+api_key = st.text_input("Enter your Gemini API key:", type="password",
                         help="Get your API key from https://aistudio.google.com/app/apikey",
                         key="api_key_input")
 
-if not api_key:
+# Initialize model and API readiness
+if "model" not in st.session_state:
+    st.session_state.model = None
+if "api_ready" not in st.session_state:
+    st.session_state.api_ready = False
+
+# Only configure API if key is provided and not already ready
+if api_key and not st.session_state.api_ready:
+    try:
+        genai.configure(api_key=api_key)
+        
+        # Test the API with a simple request
+        test_model_instance = genai.GenerativeModel('gemini-1.5-flash')
+        # Use a non-empty string for content to ensure it's a valid request
+        test_response = test_model_instance.generate_content("Test connection", stream=False) 
+        
+        # Check if text response exists, indicating success
+        if test_response and test_response.text:
+            st.session_state.model = test_model_instance
+            st.session_state.api_ready = True
+            st.success("✅ API connected successfully!")
+        else:
+            raise ValueError("API test failed: No text response received. Check API key or content safety settings.")
+            
+    except Exception as e:
+        st.error(f"❌ API configuration error: {str(e)}")
+        st.error("Please check your Gemini API key, it might be incorrect or have issues.")
+        st.session_state.api_ready = False
+        st.session_state.model = None # Reset model if error
+        
+elif not api_key:
     st.warning("⚠️ Please enter your Gemini API key to use WiseBuddy")
     st.markdown("[How to get a Gemini API key](https://aistudio.google.com/app/apikey)")
+    st.stop() # Stop execution if API key is not ready
+
+# Stop further execution if API is not ready
+if not st.session_state.api_ready:
     st.stop()
 
-try:
-    # Configure API with validation
-    genai.configure(api_key=api_key)
-    
-    # Test the API with a simple request using the correct model
-    test_model = genai.GenerativeModel('gemini-1.5-flash')
-    test_response = test_model.generate_content("Hello")
-    
-    if not test_response.text:
-        raise ValueError("API test failed - no response received")
-    
-    model = test_model  # Use the same model for the chat
-    st.session_state.api_ready = True
-    st.success("✅ API connected successfully!")
-except Exception as e:
-    st.error(f"❌ API configuration error: {str(e)}")
-    st.error("Please check your API key and try again")
-    st.session_state.api_ready = False
-    st.stop()
 
-# 👉 CSS Styling
+# 👉 CSS Styling (same as yours, keeping for completeness)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
@@ -198,15 +213,48 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # 👉 Initialize Chat State
-def initialize_chat():
+def initialize_chat_state():
     return {
-        "history": [],
+        "history": [], # For displaying chat in Streamlit
         "current_category": "🌟 Motivation & Positivity",
-        "is_processing": False
+        "is_processing": False,
+        "chat_session": None # The actual genai.ChatSession object
     }
 
 if "app_state" not in st.session_state:
-    st.session_state.app_state = initialize_chat()
+    st.session_state.app_state = initialize_chat_state()
+
+# Helper function to start/reset the Gemini chat session
+def start_new_gemini_chat():
+    # Only start a new chat session if API is ready
+    if st.session_state.api_ready and st.session_state.model:
+        # Define the system instruction based on the current category
+        system_instruction_text = (
+            f"You are WiseBuddy, a compassionate, knowledgeable, and encouraging AI assistant. "
+            f"Your primary role is to provide wise advice and insights specifically in the domain of "
+            f"'{st.session_state.app_state['current_category']}'.\n"
+            "When responding:\n"
+            "- Maintain a helpful and positive tone.\n"
+            "- Offer practical advice or thoughtful perspectives.\n"
+            "- Keep answers concise (1-3 paragraphs) unless more detail is explicitly requested.\n"
+            "- Do not break character as WiseBuddy.\n"
+            "- If the user's question seems outside your scope for the chosen category, gently guide them back or suggest changing categories."
+        )
+        # Create a new chat session with the system instruction
+        st.session_state.app_state["chat_session"] = st.session_state.model.start_chat(
+            history=[], # Start with an empty history for the model
+            system_instruction=system_instruction_text
+        )
+    else:
+        st.session_state.app_state["chat_session"] = None
+
+# Initialize the chat session if it's not set up yet
+if st.session_state.api_ready and st.session_state.app_state["chat_session"] is None:
+    start_new_gemini_chat()
+    st.session_state.app_state["history"].append(
+        ("bot", f"Hello! I'm WiseBuddy, your AI advisor in **{st.session_state.app_state['current_category']}**. How can I assist you today?")
+    )
+
 
 # 👉 Control Panel
 with st.container():
@@ -236,7 +284,8 @@ with st.container():
     
     # Clear Chat Button
     if st.button("🗑️ Clear Chat", key="clear_chat"):
-        st.session_state.app_state = initialize_chat()
+        st.session_state.app_state = initialize_chat_state() # Reset all app state
+        start_new_gemini_chat() # Start a new Gemini chat session
         st.session_state.app_state["history"].append(
             ("bot", f"Hello! I'm WiseBuddy, your AI advisor in **{st.session_state.app_state['current_category']}**. How can I assist you today?")
         )
@@ -247,6 +296,7 @@ with st.container():
 # 👉 Update category if changed
 if new_category != st.session_state.app_state["current_category"]:
     st.session_state.app_state["current_category"] = new_category
+    start_new_gemini_chat() # Start a new chat session with the new system instruction
     st.session_state.app_state["history"].append(
         ("bot", f"Switching to **{new_category}** mode! How can I help you in this area?")
     )
@@ -255,10 +305,12 @@ if new_category != st.session_state.app_state["current_category"]:
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 st.markdown('<div class="message-area">', unsafe_allow_html=True)
 
-if not st.session_state.app_state["history"]:
-    st.session_state.app_state["history"].append(
-        ("bot", f"Hello! I'm WiseBuddy, your AI advisor in **{st.session_state.app_state['current_category']}**. How can I assist you today?")
-    )
+# We now ensure the initial bot message is always there via initialize_chat_state/start_new_gemini_chat
+# No need for this redundant check here:
+# if not st.session_state.app_state["history"]:
+#     st.session_state.app_state["history"].append(
+#         ("bot", f"Hello! I'm WiseBuddy, your AI advisor in **{st.session_state.app_state['current_category']}**. How can I assist you today?")
+#     )
 
 for speaker, message in st.session_state.app_state["history"]:
     if speaker == "user":
@@ -292,10 +344,10 @@ st.markdown('</div>', unsafe_allow_html=True)  # Close message-area
 st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
 
 # 👉 User Input
-user_input = st.chat_input("💭 Type your message here...", disabled=not st.session_state.get('api_ready', False))
+user_input = st.chat_input("💭 Type your message here...", disabled=not st.session_state.api_ready)
 
 # 👉 Process User Input
-if user_input and not st.session_state.app_state["is_processing"] and st.session_state.get('api_ready', False):
+if user_input and not st.session_state.app_state["is_processing"] and st.session_state.api_ready:
     # Set processing state
     st.session_state.app_state["is_processing"] = True
     st.session_state.app_state["history"].append(("user", user_input))
@@ -303,42 +355,48 @@ if user_input and not st.session_state.app_state["is_processing"] and st.session
     st.rerun()
 
 # Process Gemini response after UI update
-if st.session_state.app_state.get("is_processing", False) and st.session_state.app_state["history"][-1][0] == "typing" and st.session_state.get('api_ready', False):
+# This block will run on the rerun triggered by the user_input block
+if st.session_state.app_state.get("is_processing", False) and st.session_state.app_state["history"][-1][0] == "typing" and st.session_state.api_ready:
     try:
-        # Generate system instruction based on category
-        system_instruction = (
-            f"You are WiseBuddy, a compassionate and insightful AI advisor specializing in "
-            f"{st.session_state.app_state['current_category']}.\n"
-            "Your responses should be:\n"
-            "- Supportive and encouraging\n"
-            "- Practical and actionable\n"
-            "- Concise (1-2 paragraphs)\n"
-            "- Tailored to the user's needs\n\n"
-            "Current conversation context:\n"
-            f"{st.session_state.app_state['history'][-2][1] if len(st.session_state.app_state['history']) > 2 else 'New conversation'}"
-        )
+        # Get the actual ChatSession object
+        chat_session = st.session_state.app_state["chat_session"]
         
-        # Send message to Gemini
-        response = model.generate_content(
-            user_input,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.8,
-                max_output_tokens=500
-            ),
-            system_instruction=system_instruction
-        )
-        
-        # Get response and remove typing indicator
-        bot_response = response.text
-        st.session_state.app_state["history"].pop()  # Remove typing indicator
-        st.session_state.app_state["history"].append(("bot", bot_response))
-        
+        if chat_session:
+            # Send the user input to the chat session
+            response = chat_session.send_message(
+                user_input, # The input from the user
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.8,
+                    max_output_tokens=500
+                )
+                # No need for system_instruction here, as it's set on start_chat
+            )
+            
+            bot_response = ""
+            if response.text:
+                bot_response = response.text
+            elif response.parts: # Fallback if text is not directly available but parts are
+                 bot_response = "".join([str(part) for part in response.parts])
+            else:
+                # Inspect prompt_feedback for rejection reasons (e.g., safety)
+                feedback = response.prompt_feedback
+                if feedback and feedback.block_reason:
+                    bot_response = f"WiseBuddy cannot respond to that due to content policy: {feedback.block_reason.name}."
+                else:
+                    bot_response = "WiseBuddy had trouble understanding that. Could you rephrase?"
+
+            # Remove typing indicator and append bot response
+            st.session_state.app_state["history"].pop()
+            st.session_state.app_state["history"].append(("bot", bot_response))
+        else:
+            st.session_state.app_state["history"].pop() # Remove typing
+            st.session_state.app_state["history"].append(("bot", "WiseBuddy is not ready. Please ensure your API key is correct."))
+            
     except Exception as e:
-        # Handle errors gracefully
-        st.session_state.app_state["history"].pop()  # Remove typing indicator
-        st.session_state.app_state["history"].append(("bot", "⚠️ Sorry, I encountered an issue. Please try again."))
-        st.error(f"API Error: {str(e)}")
-        st.error("If this persists, try a different question or clear the chat")
+        # Handle API or other unexpected errors
+        st.session_state.app_state["history"].pop() # Remove typing
+        st.session_state.app_state["history"].append(("bot", f"⚠️ Sorry, an unexpected error occurred. ({str(e).split(')')[0]}) Please try again."))
+        st.error(f"Error during content generation: {str(e)}")
     finally:
         # Reset processing state
         st.session_state.app_state["is_processing"] = False
@@ -350,3 +408,4 @@ st.markdown("""
         WiseBuddy 🧠 • Your AI companion for thoughtful advice • Powered by Gemini
     </div>
 """, unsafe_allow_html=True)
+
