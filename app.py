@@ -276,7 +276,7 @@ for speaker, message in st.session_state.app_state["history"]:
                     <strong>WiseBuddy:</strong><br>{message}
                 </div>
             </div>
-        ""', unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
     elif speaker == "typing":
         st.markdown(f"""
             <div style="display:flex;justify-content:flex-start;align-items:flex-end;margin-bottom:15px;">
@@ -306,17 +306,17 @@ if user_input and not st.session_state.app_state["is_processing"] and st.session
 if st.session_state.app_state.get("is_processing", False) and st.session_state.app_state["history"][-1][0] == "typing" and st.session_state.get('api_ready', False):
     try:
         # Generate system instruction based on category
-        system_instruction = f"""
-        You are WiseBuddy, a compassionate and insightful AI advisor specializing in {st.session_state.app_state["current_category"]}.
-        Your responses should be:
-        - Supportive and encouraging
-        - Practical and actionable
-        - Concise (1-2 paragraphs)
-        - Tailored to the user's needs
-        
-        Current conversation context:
-        {st.session_state.app_state["history"][-2][1] if len(st.session_state.app_state["history"]) > 2 else "New conversation"}
-        """
+        system_instruction = (
+            f"You are WiseBuddy, a compassionate and insightful AI advisor specializing in "
+            f"{st.session_state.app_state['current_category']}.\n"
+            "Your responses should be:\n"
+            "- Supportive and encouraging\n"
+            "- Practical and actionable\n"
+            "- Concise (1-2 paragraphs)\n"
+            "- Tailored to the user's needs\n\n"
+            "Current conversation context:\n"
+            f"{st.session_state.app_state['history'][-2][1] if len(st.session_state.app_state['history']) > 2 else 'New conversation'}"
+        )
         
         # Send message to Gemini
         response = model.generate_content(
