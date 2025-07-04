@@ -3,7 +3,6 @@ import google.generativeai as genai
 import random
 import time
 import os
-import traceback
 
 # 👉 Streamlit Page Setup
 st.set_page_config(page_title="WiseBuddy 🧠", page_icon="🤖", layout="centered")
@@ -25,12 +24,7 @@ try:
     
     # Test the API with a simple request
     test_model = genai.GenerativeModel('gemini-pro')
-    test_response = test_model.generate_content("Hello", safety_settings={
-        'HARASSMENT':'block_none',
-        'HATE_SPEECH':'block_none',
-        'SEXUALLY_EXPLICIT':'block_none',
-        'DANGEROUS_CONTENT':'block_none'
-    })
+    test_response = test_model.generate_content("Hello")
     
     if not test_response.text:
         raise ValueError("API test failed - no response received")
@@ -324,7 +318,7 @@ if st.session_state.app_state.get("is_processing", False) and st.session_state.a
         {st.session_state.app_state["history"][-2][1] if len(st.session_state.app_state["history"]) > 2 else "New conversation"}
         """
         
-        # Send message to Gemini with safety settings
+        # Send message to Gemini with CORRECT safety settings
         response = model.generate_content(
             user_input,
             generation_config=genai.types.GenerationConfig(
@@ -347,7 +341,6 @@ if st.session_state.app_state.get("is_processing", False) and st.session_state.a
         
     except Exception as e:
         # Handle errors gracefully
-        error_details = f"Error: {str(e)}"
         st.session_state.app_state["history"].pop()  # Remove typing indicator
         st.session_state.app_state["history"].append(("bot", "⚠️ Sorry, I encountered an issue. Please try again."))
         st.error(f"API Error: {str(e)}")
@@ -363,14 +356,3 @@ st.markdown("""
         WiseBuddy 🧠 • Your AI companion for thoughtful advice • Powered by Gemini
     </div>
 """, unsafe_allow_html=True)
-
-# 👉 Debug info in sidebar
-with st.sidebar:
-    st.subheader("Debug Information")
-    st.write("API Ready:", st.session_state.get('api_ready', False))
-    st.write("Current Category:", st.session_state.app_state["current_category"])
-    st.write("Processing State:", st.session_state.app_state["is_processing"])
-    st.write("History Length:", len(st.session_state.app_state["history"]))
-    
-    if st.button("Show Full State"):
-        st.write(st.session_state)
