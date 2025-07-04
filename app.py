@@ -3,30 +3,48 @@ import google.generativeai as genai
 import random
 import time
 import os
+import traceback
 
 # 👉 Streamlit Page Setup
 st.set_page_config(page_title="WiseBuddy 🧠", page_icon="🤖", layout="centered")
 
-# 👉 API Key Setup - Now in main interface
+# 👉 API Key Setup - More reliable implementation
 st.markdown("### 🔑 Gemini API Key Setup")
 api_key = st.text_input("Enter your Gemini API key:", type="password", 
-                        help="Get your API key from https://aistudio.google.com/app/apikey")
+                        help="Get your API key from https://aistudio.google.com/app/apikey",
+                        key="api_key_input")
 
 if not api_key:
-    st.warning("Please enter your Gemini API key to use WiseBuddy")
+    st.warning("⚠️ Please enter your Gemini API key to use WiseBuddy")
     st.markdown("[How to get a Gemini API key](https://aistudio.google.com/app/apikey)")
     st.stop()
 
 try:
+    # Configure API with validation
     genai.configure(api_key=api_key)
+    
+    # Test the API with a simple request
+    test_model = genai.GenerativeModel('gemini-pro')
+    test_response = test_model.generate_content("Hello", safety_settings={
+        'HARASSMENT':'block_none',
+        'HATE_SPEECH':'block_none',
+        'SEXUALLY_EXPLICIT':'block_none',
+        'DANGEROUS_CONTENT':'block_none'
+    })
+    
+    if not test_response.text:
+        raise ValueError("API test failed - no response received")
+    
     model = genai.GenerativeModel('gemini-1.5-flash')
     st.session_state.api_ready = True
+    st.success("✅ API connected successfully!")
 except Exception as e:
-    st.error(f"API configuration error: {str(e)}")
+    st.error(f"❌ API configuration error: {str(e)}")
+    st.error("Please check your API key and try again")
     st.session_state.api_ready = False
     st.stop()
 
-# 👉 CSS Styling (Improved with better error states)
+# 👉 CSS Styling
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
@@ -41,7 +59,7 @@ st.markdown("""
         color:#2c3e50;
         text-align:center;
         margin-bottom:5px;
-        margin-top: 20px;
+        margin-top: 0px;
     }
     
     .subtitle {
@@ -49,14 +67,6 @@ st.markdown("""
         color:#6c63ff;
         font-weight:500;
         margin-bottom:20px;
-    }
-    
-    .error-box {
-        background: #ffebee;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        border-left: 4px solid #f44336;
     }
     
     .chat-container {
@@ -314,13 +324,19 @@ if st.session_state.app_state.get("is_processing", False) and st.session_state.a
         {st.session_state.app_state["history"][-2][1] if len(st.session_state.app_state["history"]) > 2 else "New conversation"}
         """
         
-        # Send message to Gemini
+        # Send message to Gemini with safety settings
         response = model.generate_content(
             user_input,
             generation_config=genai.types.GenerationConfig(
                 temperature=0.8,
                 max_output_tokens=500
             ),
+            safety_settings=[
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+            ],
             system_instruction=system_instruction
         )
         
@@ -331,9 +347,11 @@ if st.session_state.app_state.get("is_processing", False) and st.session_state.a
         
     except Exception as e:
         # Handle errors gracefully
+        error_details = f"Error: {str(e)}"
         st.session_state.app_state["history"].pop()  # Remove typing indicator
-        st.session_state.app_state["history"].append(("bot", "⚠️ Sorry, I'm having trouble thinking right now. Please try a different question."))
+        st.session_state.app_state["history"].append(("bot", "⚠️ Sorry, I encountered an issue. Please try again."))
         st.error(f"API Error: {str(e)}")
+        st.error("If this persists, try a different question or clear the chat")
     finally:
         # Reset processing state
         st.session_state.app_state["is_processing"] = False
@@ -345,3 +363,14 @@ st.markdown("""
         WiseBuddy 🧠 • Your AI companion for thoughtful advice • Powered by Gemini
     </div>
 """, unsafe_allow_html=True)
+
+# 👉 Debug info in sidebar
+with st.sidebar:
+    st.subheader("Debug Information")
+    st.write("API Ready:", st.session_state.get('api_ready', False))
+    st.write("Current Category:", st.session_state.app_state["current_category"])
+    st.write("Processing State:", st.session_state.app_state["is_processing"])
+    st.write("History Length:", len(st.session_state.app_state["history"]))
+    
+    if st.button("Show Full State"):
+        st.write(st.session_state)
