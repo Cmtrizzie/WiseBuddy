@@ -1,80 +1,113 @@
-import streamlit as st
-import google.generativeai as genai
-import random
+WiseBuddy: Auto-Switch Multi-API Chatbot (Streamlit)
 
-# Configure your actual Gemini API key
-genai.configure(api_key="AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4")
+import streamlit as st import google.generativeai as genai from huggingface_hub import InferenceClient import requests import random
 
-model = genai.GenerativeModel('gemini-1.5-flash')
+=========================
 
-# Page config
+API KEYS (PLACEHOLDERS)
+
+=========================
+
+GOOGLE_API_KEY = "AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4" DEEPINFRA_API_KEY = "YjT0MXwcuncGhJkhOblzcc6mAGfWVmWP" OPENROUTER_API_KEY = "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" HUGGINGFACE_API_KEY = "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"
+
+=========================
+
+Initialize Clients
+
+=========================
+
+genai.configure(api_key=GOOGLE_API_KEY) hf_client = InferenceClient(token=HUGGINGFACE_API_KEY, model="meta-llama/Llama-3-8B-Instruct")
+
+=========================
+
+Streamlit Page Setup
+
+=========================
+
 st.set_page_config(page_title="WiseBuddy", layout="centered")
 
-# 🌟 Daily Random Quote
-quotes = [
-    "Believe you can and you're halfway there.",
-    "Success is not final, failure is not fatal: it is the courage to continue that counts.",
-    "The best investment you can make is in yourself.",
-    "In the middle of every difficulty lies opportunity.",
-    "Love yourself first and everything else falls into line.",
-    "Happiness is not something ready-made. It comes from your own actions.",
-    "Patience is the key to joy.",
-    "The biggest risk is not taking any risk."
-]
-daily_quote = random.choice(quotes)
-st.markdown(f"""
-<div style='background-color:#f0f0f0; padding:10px; border-radius:10px; text-align:center; font-size:18px;'>
-<em>{daily_quote}</em>
-</div>
-""", unsafe_allow_html=True)
+if 'chat_history' not in st.session_state: st.session_state.chat_history = []
 
-# Initialize chat history
-if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
+st.title("WiseBuddy Chat 🤖") st.write("Chat about anything—life, goals, or just venting.")
 
-# Title
-st.markdown("<h1 style='text-align:center;'>WiseBuddy Chat</h1>", unsafe_allow_html=True)
-st.write("Chat with WiseBuddy about anything—life, goals, or just venting.")
+col1, col2 = st.columns([5,1]) with col1: user_input = st.text_input("Type your message...", key="input_text", label_visibility="collapsed") with col2: send_clicked = st.button("Send")
 
-# Advice category
-category = st.selectbox("Choose your advice style:", [
-    "Motivation & Positivity",
-    "Business & Wealth",
-    "Love & Relationships",
-    "Mindfulness & Peace"
-])
+=========================
 
-# Text input and button (side by side)
-col1, col2 = st.columns([5,1])
+Auto-Switching Logic
 
-with col1:
-    user_input = st.text_input("Type here...", key="input_text", label_visibility="collapsed")
-with col2:
-    send_clicked = st.button("Send")
+=========================
 
-# Process user message safely
-if send_clicked and user_input:
-    with st.spinner("WiseBuddy is thinking..."):
-        prompt = f"You are WiseBuddy, giving advice about {category}. Respond to: {user_input}"
-        response = model.generate_content(prompt)
-        reply = response.text
+def get_response(prompt):
 
-        st.session_state.chat_history.append(("You", user_input))
-        st.session_state.chat_history.append(("WiseBuddy", reply))
+# 1. Google Gemini
+try:
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    response = model.generate_content(prompt)
+    return response.text
+except:
+    pass
 
-    # Just rerun the app to clear input safely
-    st.experimental_rerun()
+# 2. DeepInfra
+try:
+    headers = {"Authorization": f"Bearer {DEEPINFRA_API_KEY}"}
+    json_data = {"inputs": prompt, "parameters": {"max_new_tokens": 150}}
+    response = requests.post("https://api.deepinfra.com/v1/inference/meta-llama/Llama-3-8b-chat", headers=headers, json=json_data)
+    if response.ok:
+        return response.json().get('generated_text', '...')
+except:
+    pass
 
-# 🖥️ Scrollable chat box
+# 3. OpenRouter
+try:
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    json_data = {
+        "model": "mistralai/mistral-7b-instruct", 
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=json_data)
+    if response.ok:
+        return response.json()['choices'][0]['message']['content']
+except:
+    pass
+
+# 4. Hugging Face
+try:
+    response = hf_client.text_generation(prompt, max_new_tokens=150)
+    return response
+except:
+    return "Sorry, all AI providers are currently unavailable. Please try again later."
+
+=========================
+
+Handle Send Button
+
+=========================
+
+if send_clicked and user_input: prompt = f"You are WiseBuddy, a friendly AI advisor. Respond to: {user_input}"
+
+with st.spinner("WiseBuddy is thinking..."):
+    reply = get_response(prompt)
+
+st.session_state.chat_history.append(("You", user_input))
+st.session_state.chat_history.append(("WiseBuddy", reply))
+st.experimental_rerun()
+
+=========================
+
+Display Chat History
+
+=========================
+
 st.markdown("""
-<div style='max-height:400px; overflow-y: auto; padding:10px; border:1px solid #ddd; border-radius:10px; background-color:#fff;'>
-""", unsafe_allow_html=True)
 
-for speaker, message in st.session_state.chat_history:
-    st.markdown(f"""
-    <div style='background-color:#f9f9f9; padding:10px; margin-bottom:10px; border-radius:8px;'>
-    <strong>{speaker}:</strong><br>{message}
-    </div>
-    """, unsafe_allow_html=True)
+<div style='max-height:500px; overflow-y: auto; padding:10px; border:1px solid #ddd; border-radius:10px; background-color:#fff;'>
+""", unsafe_allow_html=True)for speaker, message in st.session_state.chat_history: st.markdown(f""" <div style='background-color:#f9f9f9; padding:10px; margin-bottom:10px; border-radius:8px;'> <strong>{speaker}:</strong><br>{message} </div> """, unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
+
+End of Code
+
