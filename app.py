@@ -92,7 +92,7 @@ if send_clicked and user_input:
 
     st.session_state.chat_history.append(("You", user_input))
     st.session_state.chat_history.append(("WiseBuddy", reply))
-    st.experimental_rerun()
+    st.rerun()
 
 # =========================
 # Display Chat History
