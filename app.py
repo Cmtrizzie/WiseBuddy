@@ -1,131 +1,68 @@
-import streamlit as st
-import google.generativeai as genai
-import random
-import time
+import streamlit as st import google.generativeai as genai import random
 
-# Streamlit Page Setup
+Set page configuration
+
 st.set_page_config(page_title="WiseBuddy 🧠", page_icon="🤖", layout="centered")
 
-# API Key Input
-st.markdown("### 🔑 Gemini API Key Setup")
-api_key = st.text_input(
-    "Enter your Gemini API key:",
-    type="password",
-    help="Get your API key from https://aistudio.google.com/app/apikey",
-    key="api_key_input"
-)
+API Key input
 
-if not api_key:
-    st.warning("⚠️ Please enter your Gemini API key to use WiseBuddy")
-    st.markdown("[How to get a Gemini API key](https://aistudio.google.com/app/apikey)")
-    st.stop()
+st.markdown("### 🔑 Gemini API Key Setup") api_key = st.text_input("Enter your Gemini API key:", type="password", help="Get your API key from https://aistudio.google.com/app/apikey", key="api_key_input")
+
+if not api_key: st.warning("⚠️ Please enter your Gemini API key to use WiseBuddy") st.markdown("How to get a Gemini API key") st.stop()
+
+try: genai.configure(api_key=api_key) model = genai.GenerativeModel('gemini-1.5-flash') response_test = model.generate_content("Hello") if not response_test.text: raise ValueError("API key invalid or no response") st.success("✅ API connected successfully!") except Exception as e: st.error(f"❌ API Error: {str(e)}") st.stop()
+
+CSS Styling
+
+st.markdown(""" <style> .big-font { font-size:28px !important; font-weight:700; color:#2c3e50; text-align:center; margin-bottom:5px; } .subtitle { text-align:center; color:#6c63ff; font-weight:500; margin-bottom:20px; } .chat-container { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); margin-bottom: 20px; } .message-area { height: 55vh; overflow-y: auto; padding: 15px; margin-bottom: 20px; background: #fafaff; border-radius: 15px; border: 1px solid rgba(0,0,0,0.03); } .user-bubble { background: linear-gradient(135deg, #d0f0c0 0%, #b8e994 100%); padding: 16px 20px; border-radius: 24px 24px 0 24px; max-width: 80%; font-size: 16px; margin-left: auto; margin-bottom: 15px; } .bot-bubble { background: linear-gradient(135deg, #e0d4f7 0%, #cbb2fe 100%); padding: 16px 20px; border-radius: 24px 24px 24px 0; max-width: 80%; font-size: 16px; margin-right: auto; margin-bottom: 15px; } </style> """, unsafe_allow_html=True)
+
+Title & Quote
+
+st.markdown('<p class="big-font">💬 WiseBuddy 🧠</p>', unsafe_allow_html=True) st.markdown('<p class="subtitle">Your AI companion for thoughtful advice</p>', unsafe_allow_html=True)
+
+quotes = [ "🌟 Believe you can and you're halfway there.", "🚀 Success is the sum of small efforts repeated daily.", "💡 The best way to predict the future is to create it.", "❤️ You are stronger than you think.", "🔥 Dream big. Start small. Act now." ] st.markdown(f'<div style="text-align:center;padding:10px;border-radius:10px;background:#eee;">{random.choice(quotes)}</div>', unsafe_allow_html=True)
+
+Initialize Chat State
+
+if "chat_state" not in st.session_state: st.session_state.chat_state = { "history": [], "category": "🌟 Motivation & Positivity", "is_processing": False }
+
+Category selection
+
+category = st.selectbox("📝 Choose advice style:", [ "🌟 Motivation & Positivity", "💡 Business & Wealth", "❤️ Love & Relationships", "🧘 Mindfulness & Peace" ], index=0)
+
+if category != st.session_state.chat_state["category"]: st.session_state.chat_state["category"] = category st.session_state.chat_state["history"].append(("bot", f"Switched to {category}. How can I help?"))
+
+Display chat history
+
+st.markdown('<div class="chat-container"><div class="message-area">', unsafe_allow_html=True)
+
+if not st.session_state.chat_state["history"]: st.session_state.chat_state["history"].append(("bot", f"Hello! I'm WiseBuddy in {category} mode. How can I assist you?"))
+
+for speaker, text in st.session_state.chat_state["history"]: if speaker == "user": st.markdown(f'<div class="user-bubble"><strong>You:</strong><br>{text}</div>', unsafe_allow_html=True) else: st.markdown(f'<div class="bot-bubble"><strong>WiseBuddy:</strong><br>{text}</div>', unsafe_allow_html=True)
+
+st.markdown('</div></div>', unsafe_allow_html=True)
+
+Input
+
+user_input = st.chat_input("💭 Type your message here...")
+
+if user_input and not st.session_state.chat_state["is_processing"]: st.session_state.chat_state["history"].append(("user", user_input)) st.session_state.chat_state["is_processing"] = True
+
+Process reply
+
+if st.session_state.chat_state["is_processing"]: last_user_message = st.session_state.chat_state["history"][-1][1]
 
 try:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    response = model.generate_content("Hello WiseBuddy")
-    if not response.text:
-        raise ValueError("No response from API")
-    st.session_state.api_ready = True
-    st.success("✅ API connected successfully!")
-except Exception as e:
-    st.error(f"❌ API Error: {e}")
-    st.stop()
+    prompt = f"You are WiseBuddy, specializing in {st.session_state.chat_state['category']}. Be supportive, concise, and positive. Context: {last_user_message}"
+    result = model.generate_content(last_user_message)
 
-# CSS Styling
-st.markdown("""
-<style>
-.big-font { font-size:28px; font-weight:bold; color:#2c3e50; text-align:center; margin-bottom:5px; }
-.subtitle { text-align:center; color:#6c63ff; font-weight:500; margin-bottom:20px; }
-.quote-container { background:#f0f0ff; padding:15px; border-radius:15px; margin-bottom:20px; }
-.user-bubble { background:#d0f0c0; padding:12px 16px; border-radius:18px 18px 0 18px; max-width:70%; margin-left:auto; margin-bottom:10px; }
-.bot-bubble { background:#e0d4f7; padding:12px 16px; border-radius:18px 18px 18px 0; max-width:70%; margin-right:auto; margin-bottom:10px; }
-.typing-indicator { background:#e0d4f7; padding:10px 16px; border-radius:15px; width:60px; display:flex; gap:5px; }
-.typing-dot { width:8px; height:8px; background:#6c63ff; border-radius:50%; animation: blink 1.2s infinite; }
-@keyframes blink { 0% {opacity: 0.2;} 50% {opacity: 1;} 100% {opacity: 0.2;} }
-</style>
-""", unsafe_allow_html=True)
+    st.session_state.chat_state["history"].append(("bot", result.text.strip()))
+except Exception:
+    st.session_state.chat_state["history"].append(("bot", "⚠️ Oops! Something went wrong. Please try again."))
 
-# Title and Quote
-st.markdown('<p class="big-font">💬 WiseBuddy 🧠</p>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Your AI companion for thoughtful advice</p>', unsafe_allow_html=True)
+st.session_state.chat_state["is_processing"] = False
 
-quotes = [
-    "🌟 Believe you can and you're halfway there.",
-    "🚀 Success is the sum of small efforts repeated daily.",
-    "💡 The best way to predict the future is to create it.",
-    "❤️ You are stronger than you think.",
-    "🔥 Dream big. Start small. Act now."
-]
-st.markdown(f'<div class="quote-container"><em>{random.choice(quotes)}</em></div>', unsafe_allow_html=True)
+Footer
 
-# Chat State Initialization
-def init_state():
-    return {
-        "history": [],
-        "category": "🌟 Motivation & Positivity",
-        "is_processing": False
-    }
-
-if "app_state" not in st.session_state:
-    st.session_state.app_state = init_state()
-
-# Control Panel
-col1, col2 = st.columns([3,1])
-with col1:
-    category = st.selectbox(
-        "📝 Choose your advice style:",
-        ["🌟 Motivation & Positivity", "💡 Business & Wealth", "❤️ Love & Relationships", "🧘 Mindfulness & Peace"],
-        index=0
-    )
-with col2:
-    if st.button("🗑️ Clear Chat"):
-        st.session_state.app_state = init_state()
-        st.experimental_rerun()
-
-if category != st.session_state.app_state["category"]:
-    st.session_state.app_state["category"] = category
-    st.session_state.app_state["history"].append(("bot", f"Switched to **{category}** advice. How can I help?"))
-
-# Message Display
-st.markdown('<div style="background:white;border-radius:15px;padding:15px;">', unsafe_allow_html=True)
-
-if not st.session_state.app_state["history"]:
-    st.session_state.app_state["history"].append(("bot", f"Hi! I'm WiseBuddy, ready to help with **{category}** advice. How can I assist?"))
-
-for speaker, message in st.session_state.app_state["history"]:
-    if speaker == "user":
-        st.markdown(f'<div class="user-bubble"><strong>You:</strong><br>{message}</div>', unsafe_allow_html=True)
-    elif speaker == "bot":
-        st.markdown(f'<div class="bot-bubble"><strong>WiseBuddy:</strong><br>{message}</div>', unsafe_allow_html=True)
-    elif speaker == "typing":
-        st.markdown('<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>', unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# Chat Input
-user_input = st.chat_input("💬 Type something here...")
-
-if user_input and not st.session_state.app_state["is_processing"]:
-    st.session_state.app_state["history"].append(("user", user_input))
-    st.session_state.app_state["history"].append(("typing", ""))
-    st.session_state.app_state["is_processing"] = True
-    st.experimental_rerun()
-
-# Handle Response
-if st.session_state.app_state["is_processing"] and st.session_state.app_state["history"][-1][0] == "typing":
-    try:
-        prompt = f"You are WiseBuddy, giving advice on {st.session_state.app_state['category']}. Respond helpfully to: {st.session_state.app_state['history'][-2][1]}"
-        response = model.generate_content(prompt)
-        reply = response.text or "I'm here to help! Could you clarify your question?"
-        st.session_state.app_state["history"].pop()  # remove typing
-        st.session_state.app_state["history"].append(("bot", reply))
-    except Exception as e:
-        st.session_state.app_state["history"].pop()
-        st.session_state.app_state["history"].append(("bot", f"⚠️ Oops: {str(e)}"))
-    finally:
-        st.session_state.app_state["is_processing"] = False
-        st.experimental_rerun()
-
-# Footer
 st.markdown('<div class="footer">WiseBuddy 🧠 • Powered by Gemini</div>', unsafe_allow_html=True)
+
