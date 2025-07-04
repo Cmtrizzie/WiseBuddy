@@ -34,7 +34,22 @@ st.markdown("""
 # App Title
 st.markdown('<p class="big-font">💬 Welcome to <span style="color:#6c63ff;">WiseBuddy</span> 🧠</p>', unsafe_allow_html=True)
 st.write("Your friendly AI advice bot. Choose your advice style and tell me what’s on your mind.")
+import random
 
+# List of daily motivational quotes
+quotes = [
+    "🌟 Believe you can and you're halfway there.",
+    "🚀 Success is the sum of small efforts repeated daily.",
+    "💡 The best way to predict the future is to create it.",
+    "❤️ You are stronger than you think.",
+    "🔥 Dream big. Start small. Act now."
+]
+
+# Pick a random quote
+quote_of_the_day = random.choice(quotes)
+
+# Display the quote
+st.markdown(f'<div style="background-color:#e6e6fa;padding:15px;border-radius:10px;text-align:center;"><em>{quote_of_the_day}</em></div>', unsafe_allow_html=True)
 # Advice Category Selection
 category = st.selectbox("📝 Choose your advice style:", [
     "🌟 Motivation & Positivity",
@@ -47,6 +62,11 @@ category = st.selectbox("📝 Choose your advice style:", [
 user_input = st.text_input("💭 What's on your mind?")
 
 if user_input:
+    # Display advice inside advice-box
+st.markdown(f'<div class="advice-box">{response.text}</div>', unsafe_allow_html=True)
+
+# Add copy button
+st.code(response.text, language='')  # This creates a nice copyable box
     with st.spinner("WiseBuddy is thinking..."):
         prompt = f"You are WiseBuddy, a wise and kind chatbot specializing in {category}. Give short, helpful advice about: {user_input}"
         response = model.generate_content(prompt)
