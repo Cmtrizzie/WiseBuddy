@@ -1,6 +1,10 @@
 # WiseBuddy: Auto-Switch Multi-API Chatbot (Streamlit)
 
-import streamlit as st import google.generativeai as genai from huggingface_hub import InferenceClient import requests
+import streamlit as st 
+import google.generativeai as genai 
+from huggingface_hub 
+import InferenceClient 
+import requests
 
 =========================
 
