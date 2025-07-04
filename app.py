@@ -7,7 +7,7 @@ genai.configure(api_key="AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4")
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 👉 Streamlit Page Setup
-st.set_page_config(page_title="WiseBuddy �", page_icon="🤖", layout="centered")
+st.set_page_config(page_title="WiseBuddy 🧠", page_icon="🤖", layout="centered")
 
 # 👉 CSS Styling (Bubbles + Background + Shadows)
 st.markdown("""
@@ -127,13 +127,17 @@ user_input = st.chat_input("💭 Type your message here:")
 if user_input:
     # Add user message to both our history and Gemini's history
     st.session_state.history.append(("user", user_input))
-    st.session_state.chat.history.append(  # Add to Gemini's history
-        genai.types.Content(role="user", parts=[genai.types.Part(text=user_input)])
+    
+    # Fixed syntax for adding to Gemini's history
+    st.session_state.chat.history.append({
+        "role": "user",
+        "parts": [{"text": user_input}]
+    })
     
     # Create system instruction with current category
     system_instruction = (
         f"You are WiseBuddy, a friendly advice chatbot specializing in {st.session_state.current_category}. "
-        "Respond in a kind, supportive, and helpful manner."
+        "Respond in a kind, supportive, and helpful manner. Keep responses concise but meaningful."
     )
     
     with st.spinner("🤖 WiseBuddy is typing..."):
@@ -147,8 +151,12 @@ if user_input:
             
             # Add bot response to both histories
             st.session_state.history.append(("bot", bot_response))
-            st.session_state.chat.history.append(  # Add to Gemini's history
-                genai.types.Content(role="model", parts=[genai.types.Part(text=bot_response)])
+            
+            # Fixed syntax for adding to Gemini's history
+            st.session_state.chat.history.append({
+                "role": "model",
+                "parts": [{"text": bot_response}]
+            })
         except Exception as e:
             st.error(f"⚠️ Error generating response: {str(e)}")
             st.session_state.history.append(("bot", "Sorry, I encountered an error. Please try again."))
