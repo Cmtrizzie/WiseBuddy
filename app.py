@@ -3,7 +3,7 @@ import google.generativeai as genai
 import random
 
 # 👉 Configure your Gemini API Key
-genai.configure(api_key="AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4")
+genai.configure(api_key="YOUR_API_KEY_HERE")
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 👉 Streamlit Page Setup
@@ -99,19 +99,21 @@ with chat_container:
             avatar = "🧑"
             bubble_class = "user-bubble"
             alignment = "flex-end"
+            avatar_position = "after"  # Avatar AFTER bubble for user
         else:
             avatar = "🤖"
             bubble_class = "bot-bubble"
             alignment = "flex-start"
+            avatar_position = "before"  # Avatar BEFORE bubble for bot
 
         st.markdown(f'''
             <div style="display: flex; justify-content: {alignment}; margin-top: 10px;">
                 <div style="display: flex; align-items: flex-start; gap: 8px;">
-                    {'<div style="font-size:24px;">' + avatar + '</div>' if speaker != 'user' else ''}
+                    {'<div style="font-size:24px;">' + avatar + '</div>' if avatar_position == "before" else ''}
                     <div class="{bubble_class}">
                         <strong>{'You' if speaker == 'user' else 'WiseBuddy'}:</strong><br>{message}
                     </div>
-                    {'<div style="font-size:24px;">' + avatar + '</div>' if speaker == 'user' else ''}
+                    {'<div style="font-size:24px;">' + avatar + '</div>' if avatar_position == "after" else ''}
                 </div>
             </div>
         ''', unsafe_allow_html=True)
@@ -124,9 +126,19 @@ user_input = st.chat_input("💭 Type your message here:")
 # 👉 Generate Response
 if user_input:
     st.session_state.history.append(("user", user_input))
+    
+    # Get last bot response for context (if exists)
+    prev_context = ""
+    if len(st.session_state.history) > 1:
+        # Search backwards through history for last bot message
+        for msg in reversed(st.session_state.history[:-1]):
+            if msg[0] == "bot":
+                prev_context = msg[1]
+                break
+    
     prompt = f"""
     You are WiseBuddy, a friendly advice chatbot specializing in {st.session_state.current_category}. 
-    The user has been chatting about: {st.session_state.history[-2][1] if len(st.session_state.history) > 1 else 'new conversation'}
+    {f"The previous conversation context was: '{prev_context}'" if prev_context else "This is a new conversation."}
     
     Respond kindly to: {user_input}
     """
