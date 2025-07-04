@@ -30,6 +30,9 @@ quotes = [
 st.markdown(f'<div style="background-color:#e6e6fa;padding:10px;border-radius:10px;text-align:center;"><em>{random.choice(quotes)}</em></div>', unsafe_allow_html=True)
 
 # 👉 Category Select
+if st.button("🗑️ Clear Chat"):
+    st.session_state.chat_history = []
+    st.experimental_rerun()
 category = st.selectbox("📝 Choose your advice style:", [
     "🌟 Motivation & Positivity",
     "💡 Business & Wealth",
@@ -57,4 +60,13 @@ if user_input:
 
 # 👉 Display Chat History
 for speaker, message in st.session_state.chat_history:
-    st.markdown(f'<div class="advice-box"><strong>{speaker}:</strong><br>{message}</div>', unsafe_allow_html=True)
+    if speaker == "You":
+        bubble_color = "#d1e7dd"  # Soft green for user
+    else:
+        bubble_color = "#fff3cd"  # Soft yellow for WiseBuddy
+    
+    st.markdown(f'''
+        <div style="background-color:{bubble_color}; padding:15px; border-radius:10px; margin-top:10px;">
+            <strong>{speaker}:</strong><br>{message}
+        </div>
+    ''', unsafe_allow_html=True)
