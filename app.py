@@ -2,64 +2,49 @@ import streamlit as st
 import google.generativeai as genai
 import random
 
-# 👉 Configure your Gemini API Key
-genai.configure(api_key="AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4")  # Replace with your actual API key
+# 👉 Configure your Gemini API Key - REPLACE WITH YOUR ACTUAL API KEY
+# It's highly recommended to use Streamlit secrets for API keys in a deployed app.
+# Example: api_key=st.secrets["GEMINI_API_KEY"]
+genai.configure(api_key="AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4")
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 👉 Streamlit Page Setup
-st.set_page_config(page_title="WiseBuddy �", page_icon="🤖", layout="centered")
+st.set_page_config(page_title="WiseBuddy 🧠", page_icon="🤖", layout="centered")
 
 # 👉 CSS Styling (Bubbles + Background + Shadows)
 st.markdown("""
     <style>
     body {
         background-color: #f7f9fc;
-        font-family: Arial, sans-serif;
     }
-    .big-font { 
-        font-size:26px !important; 
-        font-weight:bold; 
-        color:#2c3e50; 
-    }
+    .big-font { font-size:26px !important; font-weight:bold; color:#2c3e50; }
+    .chat-container { display:flex; flex-direction:column; gap:10px; margin-top:10px; }
     .user-bubble {
         background-color:#d1e7dd;
         padding:12px 15px;
-        border-radius:18px 18px 0 18px;
+        border-radius:15px;
         max-width:70%;
         font-size:16px;
+        margin-left:auto;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-        margin-left: auto;
     }
     .bot-bubble {
         background-color:#fff3cd;
         padding:12px 15px;
-        border-radius:18px 18px 18px 0;
+        border-radius:15px;
         max-width:70%;
         font-size:16px;
+        margin-right:auto;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-        margin-right: auto;
     }
     .error-bubble {
         background-color:#f8d7da;
         padding:12px 15px;
-        border-radius:18px 18px 18px 0;
+        border-radius:15px;
         max-width:70%;
         font-size:16px;
+        margin-right:auto;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-        margin-right: auto;
-    }
-    .chat-container {
-        padding-bottom: 70px;
-    }
-    .stChatInput {
-        position: fixed;
-        bottom: 20px;
-        width: 70%;
-        left: 15%;
-        background: white;
-        padding: 15px;
-        border-radius: 15px;
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -73,7 +58,7 @@ quotes = [
     "❤️ You are stronger than you think.",
     "🔥 Dream big. Start small. Act now."
 ]
-st.markdown(f'<div style="background-color:#e6e6fa;padding:10px;border-radius:10px;text-align:center;margin-bottom:20px;"><em>{random.choice(quotes)}</em></div>', unsafe_allow_html=True)
+st.markdown(f'<div style="background-color:#e6e6fa;padding:10px;border-radius:10px;text-align:center;"><em>{random.choice(quotes)}</em></div>', unsafe_allow_html=True)
 
 # 👉 Initialize Chat State
 if 'chat' not in st.session_state:
@@ -104,83 +89,91 @@ category = st.selectbox(
 if st.button("🗑️ Clear Chat"):
     st.session_state.chat = model.start_chat(history=[])
     st.session_state.history = []
+    # Reset category to the currently selected one
     st.session_state.current_category = category
-    st.rerun()
+    st.rerun() # Rerun to clear chat display immediately
 
 # 👉 Chat Display
 chat_container = st.container()
 with chat_container:
+    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+
     for speaker, message in st.session_state.history:
+        # Determine avatar, bubble class, and alignment based on speaker
         if speaker == "user":
-            # User message - aligned right with avatar on right
-            st.markdown(
-                f"""
-                <div style="display: flex; justify-content: flex-end; margin: 10px 0;">
-                    <div style="display: flex; align-items: center; gap: 8px; max-width: 85%;">
-                        <div class="user-bubble">
-                            <strong>You:</strong><br>
-                            {message}
-                        </div>
-                        <div style="font-size:24px;">🧑</div>
+            avatar = "🧑"
+            bubble_class = "user-bubble"
+            alignment = "flex-end"
+            # For user, avatar goes after the bubble
+            # Note: flex-end aligns content to the right
+            chat_content = f'''
+                <div style="display: flex; align-items: flex-end; gap: 8px;">
+                    <div class="{bubble_class}">
+                        <strong>You:</strong><br>{message}
                     </div>
+                    <div style="font-size:24px;">{avatar}</div>
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
+            '''
         elif speaker == "error":
-            # Error message - aligned left with warning icon
-            st.markdown(
-                f"""
-                <div style="display: flex; justify-content: flex-start; margin: 10px 0;">
-                    <div style="display: flex; align-items: center; gap: 8px; max-width: 85%;">
-                        <div style="font-size:24px;">⚠️</div>
-                        <div class="error-bubble">
-                            <strong>Error:</strong><br>
-                            {message}
-                        </div>
+            avatar = "⚠️"
+            bubble_class = "error-bubble"
+            alignment = "flex-start"
+            # For bot/error, avatar goes before the bubble
+            chat_content = f'''
+                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                    <div style="font-size:24px;">{avatar}</div>
+                    <div class="{bubble_class}">
+                        <strong>Error:</strong><br>{message}
                     </div>
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            # Bot message - aligned left with bot avatar
-            st.markdown(
-                f"""
-                <div style="display: flex; justify-content: flex-start; margin: 10px 0;">
-                    <div style="display: flex; align-items: center; gap: 8px; max-width: 85%;">
-                        <div style="font-size:24px;">🤖</div>
-                        <div class="bot-bubble">
-                            <strong>WiseBuddy:</strong><br>
-                            {message}
-                        </div>
+            '''
+        else: # speaker == "bot"
+            avatar = "🤖"
+            bubble_class = "bot-bubble"
+            alignment = "flex-start"
+            # For bot/error, avatar goes before the bubble
+            chat_content = f'''
+                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                    <div style="font-size:24px;">{avatar}</div>
+                    <div class="{bubble_class}">
+                        <strong>WiseBuddy:</strong><br>{message}
                     </div>
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
+            '''
+        
+        # Render the entire chat message (avatar + bubble) for the current speaker
+        st.markdown(f'''
+            <div style="display: flex; justify-content: {alignment}; margin-top: 10px;">
+                {chat_content}
+            </div>
+        ''', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # 👉 User Input
-user_input = st.chat_input("💭 Type your message here...")
+user_input = st.chat_input("💭 Type your message here:")
 
 # 👉 Generate Response
 if user_input:
+    # Add user message to history immediately for quick display
     st.session_state.history.append(("user", user_input))
     
     try:
         # Create prompt with category context
-        prompt = f"""You are WiseBuddy, a friendly advice chatbot specializing in {st.session_state.current_category}. 
-        Respond to the user in a kind, supportive manner. Keep responses concise (1-2 paragraphs max).
+        prompt = f"""You are WiseBuddy, a friendly advice chatbot specializing in {st.session_state.current_category}.
+        Respond to the user in a kind, supportive manner. Keep responses concise but meaningful.
         
         User: {user_input}"""
         
-        with st.spinner("🤖 WiseBuddy is thinking..."):
+        with st.spinner("🤖 WiseBuddy is typing..."):
             response = st.session_state.chat.send_message(prompt)
             bot_response = response.text
             st.session_state.history.append(("bot", bot_response))
             
     except Exception as e:
-        error_msg = f"Sorry, I'm having trouble responding right now. Please try again later. ({str(e)})"
+        error_msg = f"API Error: {str(e)}" if "API" in str(e) else "Sorry, I encountered an error. Please try again."
         st.session_state.history.append(("error", error_msg))
     
+    # Rerun the app to update the chat display with the new message
     st.rerun()
+
