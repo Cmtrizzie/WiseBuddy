@@ -24,11 +24,11 @@ quotes = [
 daily_quote = random.choice(quotes)
 st.markdown(f"""
 <div style='background-color:#f0f0f0; padding:10px; border-radius:10px; text-align:center; font-size:18px;'>
-🌟 <em>{daily_quote}</em>
+<em>{daily_quote}</em>
 </div>
 """, unsafe_allow_html=True)
 
-# Initialize chat history
+# Initialize chat history in session state
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
@@ -44,7 +44,7 @@ category = st.selectbox("Choose your advice style:", [
     "Mindfulness & Peace"
 ])
 
-# Text input and button (same line)
+# Text input and button (side by side)
 col1, col2 = st.columns([5,1])
 
 with col1:
@@ -59,11 +59,12 @@ if send_clicked and user_input:
         response = model.generate_content(prompt)
         reply = response.text
 
+        # Update chat history
         st.session_state.chat_history.append(("You", user_input))
         st.session_state.chat_history.append(("WiseBuddy", reply))
 
-    # Clear input after send
-    st.session_state.input_text = ""
+    # Refresh safely to clear input without error
+    st.experimental_rerun()
 
 # 🖥️ Scrollable chat area (fixed height box)
 st.markdown("""
