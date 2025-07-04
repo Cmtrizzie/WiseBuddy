@@ -1,22 +1,22 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 👉 Configure your actual Gemini API key here
+# Configure your actual Gemini API key
 genai.configure(api_key="AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4")
 
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# 🌟 Page configuration with icon and title
+# Page configuration
 st.set_page_config(page_title="WiseBuddy 🧠", page_icon="🤖", layout="centered")
 
-# 🎨 Custom CSS for styling
+# Custom styling
 st.markdown("""
     <style>
     body {
         background-color: #f0f2f6;
     }
     .big-font {
-        font-size:24px !important;
+        font-size:26px !important;
         font-weight: bold;
         color: #2c3e50;
     }
@@ -31,16 +31,23 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🎉 App Title
+# App Title
 st.markdown('<p class="big-font">💬 Welcome to <span style="color:#6c63ff;">WiseBuddy</span> 🧠</p>', unsafe_allow_html=True)
-st.write("Your friendly AI advice bot. Tell me what’s on your mind and I’ll do my best to help.")
+st.write("Your friendly AI advice bot. Choose your advice style and tell me what’s on your mind.")
 
-# 📝 User Input
+# Advice Category Selection
+category = st.selectbox("📝 Choose your advice style:", [
+    "🌟 Motivation & Positivity",
+    "💡 Business & Wealth",
+    "❤️ Love & Relationships",
+    "🧘 Mindfulness & Peace"
+])
+
+# User Input
 user_input = st.text_input("💭 What's on your mind?")
 
 if user_input:
     with st.spinner("WiseBuddy is thinking..."):
-        response = model.generate_content(
-            f"You are WiseBuddy, a kind, wise chatbot. Give clear, short, helpful advice to this: {user_input}"
-        )
+        prompt = f"You are WiseBuddy, a wise and kind chatbot specializing in {category}. Give short, helpful advice about: {user_input}"
+        response = model.generate_content(prompt)
         st.markdown(f'<div class="advice-box">{response.text}</div>', unsafe_allow_html=True)
