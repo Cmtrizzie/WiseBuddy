@@ -118,34 +118,35 @@ if st.button("🗑️ Clear Chat"):
 # 👉 Start Chat if None
 if st.session_state.chat is None:
     st.session_state.chat = model.start_chat(history=[])
-
+    
 # 👉 Display Chat History
 chat_container = st.container()
 with chat_container:
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
     for speaker, message in st.session_state.history:
-    if speaker == "user":
-        avatar = '<div class="avatar user-avatar">🧑</div>'
-        bubble_class = "user-bubble"
-        alignment = "flex-end"
-    else:
-        avatar = '<div class="avatar bot-avatar">🤖</div>'
-        bubble_class = "bot-bubble"
-        alignment = "flex-start"
+        if speaker == "user":
+            avatar = '<div class="avatar user-avatar">🧑</div>'
+            bubble_class = "user-bubble"
+            alignment = "flex-end"
+        else:
+            avatar = '<div class="avatar bot-avatar">🤖</div>'
+            bubble_class = "bot-bubble"
+            alignment = "flex-start"
 
-    # This block renders the entire chat bubble + avatar with correct HTML structure
-    st.markdown(f'''
-        <div style="display: flex; justify-content: {alignment}; margin-top: 10px;">
-            <div style="display: flex; align-items: flex-start; gap: 8px;">
-                {' ' + avatar if speaker != 'user' else ''}
-                <div class="{bubble_class}">
-                    <strong>{'You' if speaker == 'user' else 'WiseBuddy'}:</strong><br>{message}
+        st.markdown(f'''
+            <div style="display: flex; justify-content: {alignment}; margin-top: 10px;">
+                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                    {' ' + avatar if speaker != 'user' else ''}
+                    <div class="{bubble_class}">
+                        <strong>{'You' if speaker == 'user' else 'WiseBuddy'}:</strong><br>{message}
+                    </div>
+                    {' ' + avatar if speaker == 'user' else ''}
                 </div>
-                {' ' + avatar if speaker == 'user' else ''}
             </div>
-        </div>
-    ''', unsafe_allow_html=True)
+        ''', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
