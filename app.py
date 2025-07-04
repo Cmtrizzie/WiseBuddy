@@ -4,7 +4,7 @@ import random
 
 # 👉 Configure your Gemini API Key - REPLACE WITH YOUR ACTUAL API KEY
 # It's highly recommended to use Streamlit secrets for API keys in a deployed app.
-# Example: api_key=st.secrets["GEMINI_API_KEY"]
+# Example: genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 genai.configure(api_key="AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4")
 model = genai.GenerativeModel('gemini-1.5-flash')
 
@@ -12,6 +12,7 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 st.set_page_config(page_title="WiseBuddy 🧠", page_icon="🤖", layout="centered")
 
 # 👉 CSS Styling (Bubbles + Background + Shadows)
+# IMPORTANT: unsafe_allow_html=True is required to render custom HTML/CSS
 st.markdown("""
     <style>
     body {
@@ -47,9 +48,10 @@ st.markdown("""
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
     }
     </style>
-""", unsafe_allow_html=True)
+""", unsafe_allow_html=True) # Ensure this is True
 
 # 👉 Title + Quote
+# IMPORTANT: unsafe_allow_html=True is required here for custom HTML
 st.markdown('<p class="big-font">💬 Welcome to <span style="color:#6c63ff;">WiseBuddy</span> 🧠</p>', unsafe_allow_html=True)
 quotes = [
     "🌟 Believe you can and you're halfway there.",
@@ -58,6 +60,7 @@ quotes = [
     "❤️ You are stronger than you think.",
     "🔥 Dream big. Start small. Act now."
 ]
+# IMPORTANT: unsafe_allow_html=True is required here for custom HTML
 st.markdown(f'<div style="background-color:#e6e6fa;padding:10px;border-radius:10px;text-align:center;"><em>{random.choice(quotes)}</em></div>', unsafe_allow_html=True)
 
 # 👉 Initialize Chat State
@@ -96,6 +99,7 @@ if st.button("🗑️ Clear Chat"):
 # 👉 Chat Display
 chat_container = st.container()
 with chat_container:
+    # IMPORTANT: unsafe_allow_html=True is required here for custom HTML
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
     for speaker, message in st.session_state.history:
@@ -142,12 +146,14 @@ with chat_container:
             '''
         
         # Render the entire chat message (avatar + bubble) for the current speaker
+        # IMPORTANT: unsafe_allow_html=True is required here for the chat messages to render correctly
         st.markdown(f'''
             <div style="display: flex; justify-content: {alignment}; margin-top: 10px;">
                 {chat_content}
             </div>
-        ''', unsafe_allow_html=True)
+        ''', unsafe_allow_html=True) # Ensure this is True
 
+    # IMPORTANT: unsafe_allow_html=True is required here for the closing div
     st.markdown('</div>', unsafe_allow_html=True)
 
 # 👉 User Input
