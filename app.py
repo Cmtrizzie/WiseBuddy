@@ -92,33 +92,52 @@ if st.button("🗑️ Clear Chat"):
 # 👉 Chat Display
 chat_container = st.container()
 with chat_container:
-    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-    
     for speaker, message in st.session_state.history:
         if speaker == "user":
-            avatar = "🧑"
-            bubble_class = "user-bubble"
-            alignment = "flex-end"
-        elif speaker == "error":
-            avatar = "⚠️"
-            bubble_class = "error-bubble"
-            alignment = "flex-start"
-        else:
-            avatar = "🤖"
-            bubble_class = "bot-bubble"
-            alignment = "flex-start"
-
-        st.markdown(f'''
-            <div style="display: flex; justify-content: {alignment}; margin-top: 10px;">
-                <div style="display: flex; align-items: flex-start; gap: 8px;">
-                    {'<div style="font-size:24px;">' + avatar + '</div>' if speaker != 'user' else ''}
-                    <div class="{bubble_class}">
-                        <strong>{'You' if speaker == 'user' else 'WiseBuddy' if speaker == 'bot' else 'Error'}:</strong><br>{message}
+            # User message
+            st.markdown(
+                f"""
+                <div style="display: flex; justify-content: flex-end; margin: 10px 0;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="user-bubble">
+                            <strong>You:</strong><br>{message}
+                        </div>
+                        <div style="font-size:24px;">🧑</div>
                     </div>
-                    {'<div style="font-size:24px;">' + avatar + '</div>' if speaker == 'user' else ''}
                 </div>
-            </div>
-        ''', unsafe_allow_html=True)
+                """,
+                unsafe_allow_html=True
+            )
+        elif speaker == "error":
+            # Error message
+            st.markdown(
+                f"""
+                <div style="display: flex; justify-content: flex-start; margin: 10px 0;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="font-size:24px;">⚠️</div>
+                        <div class="error-bubble">
+                            <strong>Error:</strong><br>{message}
+                        </div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        else:
+            # Bot message
+            st.markdown(
+                f"""
+                <div style="display: flex; justify-content: flex-start; margin: 10px 0;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="font-size:24px;">🤖</div>
+                        <div class="bot-bubble">
+                            <strong>WiseBuddy:</strong><br>{message}
+                        </div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
     
     st.markdown('</div>', unsafe_allow_html=True)
 
