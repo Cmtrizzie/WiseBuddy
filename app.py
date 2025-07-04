@@ -4,11 +4,11 @@ import streamlit as st import google.generativeai as genai from huggingface_hub 
 
 =========================
 
-API KEYS (PLACEHOLDERS)
+API KEYS (From Streamlit Secrets)
 
 =========================
 
-GOOGLE_API_KEY = "AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4" DEEPINFRA_API_KEY = "YjT0MXwcuncGhJkhOblzcc6mAGfWVmWP" OPENROUTER_API_KEY = "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" HUGGINGFACE_API_KEY = "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"
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] DEEPINFRA_API_KEY = st.secrets["DEEPINFRA_API_KEY"] OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"] HUGGINGFACE_API_KEY = st.secrets["HUGGINGFACE_API_KEY"]
 
 =========================
 
