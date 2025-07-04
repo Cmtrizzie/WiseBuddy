@@ -1,61 +1,80 @@
 import streamlit as st
 import google.generativeai as genai
+import random
 
 # Configure your actual Gemini API key
 genai.configure(api_key="AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4")
 
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Page configuration
-st.set_page_config(page_title="WiseBuddy 🧠", page_icon="🤖", layout="centered")
+# Page config
+st.set_page_config(page_title="WiseBuddy", layout="centered")
 
-# Custom styling
-st.markdown("""
-    <style>
-    body {
-        background-color: #f0f2f6;
-    }
-    .chat-box {
-        background-color: #ffffff;
-        padding: 15px;
-        border-radius: 15px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        margin-bottom: 10px;
-        color: #333333;
-        font-size: 17px;
-    }
-    </style>
+# 🌟 Daily Random Quote (shown once at top)
+quotes = [
+    "Believe you can and you're halfway there.",
+    "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+    "The best investment you can make is in yourself.",
+    "In the middle of every difficulty lies opportunity.",
+    "Love yourself first and everything else falls into line.",
+    "Happiness is not something ready-made. It comes from your own actions.",
+    "Patience is the key to joy.",
+    "The biggest risk is not taking any risk."
+]
+daily_quote = random.choice(quotes)
+st.markdown(f"""
+<div style='background-color:#f0f0f0; padding:10px; border-radius:10px; text-align:center; font-size:18px;'>
+🌟 <em>{daily_quote}</em>
+</div>
 """, unsafe_allow_html=True)
 
-# Initialize session state for chat
+# Initialize chat history
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
 # Title
-st.markdown('<h1 style="text-align: center;">💬 WiseBuddy Chat 🧠</h1>', unsafe_allow_html=True)
-st.write("Talk to WiseBuddy like a real conversation. Your friendly AI is here to listen and help.")
+st.markdown("<h1 style='text-align:center;'>WiseBuddy Chat</h1>", unsafe_allow_html=True)
+st.write("Chat with WiseBuddy about anything—life, goals, or just venting.")
 
 # Advice category
-category = st.selectbox("📝 Choose your advice style:", [
-    "🌟 Motivation & Positivity",
-    "💡 Business & Wealth",
-    "❤️ Love & Relationships",
-    "🧘 Mindfulness & Peace"
+category = st.selectbox("Choose your advice style:", [
+    "Motivation & Positivity",
+    "Business & Wealth",
+    "Love & Relationships",
+    "Mindfulness & Peace"
 ])
 
-# User Input
-user_input = st.text_input("💭 Say something to WiseBuddy:")
+# Text input and button (same line)
+col1, col2 = st.columns([5,1])
 
-if st.button("Send") and user_input:
+with col1:
+    user_input = st.text_input("Type here...", key="input_text", label_visibility="collapsed")
+with col2:
+    send_clicked = st.button("Send")
+
+# Process user message
+if send_clicked and user_input:
     with st.spinner("WiseBuddy is thinking..."):
-        prompt = f"You are WiseBuddy, a kind chatbot. Give friendly, helpful advice for: {user_input} (Topic: {category})"
+        prompt = f"You are WiseBuddy, giving advice about {category}. Respond to: {user_input}"
         response = model.generate_content(prompt)
         reply = response.text
 
-        # Save to chat history
         st.session_state.chat_history.append(("You", user_input))
         st.session_state.chat_history.append(("WiseBuddy", reply))
 
-# Display chat history
-for sender, message in st.session_state.chat_history:
-    st.markdown(f'<div class="chat-box"><strong>{sender}:</strong><br>{message}</div>', unsafe_allow_html=True)
+    # Clear input after send
+    st.session_state.input_text = ""
+
+# 🖥️ Scrollable chat area (fixed height box)
+st.markdown("""
+<div style='max-height:400px; overflow-y: auto; padding:10px; border:1px solid #ddd; border-radius:10px; background-color:#fff;'>
+""", unsafe_allow_html=True)
+
+for speaker, message in st.session_state.chat_history:
+    st.markdown(f"""
+    <div style='background-color:#f9f9f9; padding:10px; margin-bottom:10px; border-radius:8px;'>
+    <strong>{speaker}:</strong><br>{message}
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("</div>", unsafe_allow_html=True)
