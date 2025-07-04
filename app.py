@@ -62,12 +62,12 @@ category = st.selectbox("📝 Choose your advice style:", [
 user_input = st.text_input("💭 What's on your mind?")
 
 if user_input:
-    # Display advice inside advice-box
-st.markdown(f'<div class="advice-box">{response.text}</div>', unsafe_allow_html=True)
-
-# Add copy button
-st.code(response.text, language='')  # This creates a nice copyable box
     with st.spinner("WiseBuddy is thinking..."):
         prompt = f"You are WiseBuddy, a wise and kind chatbot specializing in {category}. Give short, helpful advice about: {user_input}"
         response = model.generate_content(prompt)
+        
+        # ✅ Display the advice inside advice-box
         st.markdown(f'<div class="advice-box">{response.text}</div>', unsafe_allow_html=True)
+
+        # ✅ Display copyable code box
+        st.code(response.text, language='')
