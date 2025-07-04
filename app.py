@@ -3,7 +3,7 @@ import google.generativeai as genai
 import random
 
 # 👉 Configure your Gemini API Key
-genai.configure(api_key="YOUR_API_KEY_HERE")  # Replace with your actual API key
+genai.configure(api_key="AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4")  # Replace with your actual API key
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 👉 Streamlit Page Setup
