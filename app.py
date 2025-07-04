@@ -15,27 +15,27 @@ st.markdown("""
     body {
         background-color: #f0f2f6;
     }
-    .big-font {
-        font-size:26px !important;
-        font-weight: bold;
-        color: #2c3e50;
-    }
-    .advice-box {
+    .chat-box {
         background-color: #ffffff;
-        padding: 20px;
+        padding: 15px;
         border-radius: 15px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        margin-bottom: 10px;
         color: #333333;
-        font-size: 18px;
+        font-size: 17px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# App Title
-st.markdown('<p class="big-font">💬 Welcome to <span style="color:#6c63ff;">WiseBuddy</span> 🧠</p>', unsafe_allow_html=True)
-st.write("Your friendly AI advice bot. Choose your advice style and tell me what’s on your mind.")
+# Initialize session state for chat
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
 
-# Advice Category Selection
+# Title
+st.markdown('<h1 style="text-align: center;">💬 WiseBuddy Chat 🧠</h1>', unsafe_allow_html=True)
+st.write("Talk to WiseBuddy like a real conversation. Your friendly AI is here to listen and help.")
+
+# Advice category
 category = st.selectbox("📝 Choose your advice style:", [
     "🌟 Motivation & Positivity",
     "💡 Business & Wealth",
@@ -44,10 +44,18 @@ category = st.selectbox("📝 Choose your advice style:", [
 ])
 
 # User Input
-user_input = st.text_input("💭 What's on your mind?")
+user_input = st.text_input("💭 Say something to WiseBuddy:")
 
-if user_input:
+if st.button("Send") and user_input:
     with st.spinner("WiseBuddy is thinking..."):
-        prompt = f"You are WiseBuddy, a wise and kind chatbot specializing in {category}. Give short, helpful advice about: {user_input}"
+        prompt = f"You are WiseBuddy, a kind chatbot. Give friendly, helpful advice for: {user_input} (Topic: {category})"
         response = model.generate_content(prompt)
-        st.markdown(f'<div class="advice-box">{response.text}</div>', unsafe_allow_html=True)
+        reply = response.text
+
+        # Save to chat history
+        st.session_state.chat_history.append(("You", user_input))
+        st.session_state.chat_history.append(("WiseBuddy", reply))
+
+# Display chat history
+for sender, message in st.session_state.chat_history:
+    st.markdown(f'<div class="chat-box"><strong>{sender}:</strong><br>{message}</div>', unsafe_allow_html=True)
