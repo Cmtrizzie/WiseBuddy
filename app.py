@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import random
 
-# 👉 Configure your Gemini API Key
+# 👉 Configure your Gemini API Key - REPLACE WITH YOUR ACTUAL API KEY
 genai.configure(api_key="AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4")
 model = genai.GenerativeModel('gemini-1.5-flash')
 
@@ -35,6 +35,15 @@ st.markdown("""
         margin-right:auto;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
     }
+    .error-bubble {
+        background-color:#f8d7da;
+        padding:12px 15px;
+        border-radius:15px;
+        max-width:70%;
+        font-size:16px;
+        margin-right:auto;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -51,7 +60,7 @@ st.markdown(f'<div style="background-color:#e6e6fa;padding:10px;border-radius:10
 
 # 👉 Initialize Chat State
 if 'chat' not in st.session_state:
-    st.session_state.chat = None
+    st.session_state.chat = model.start_chat(history=[])
 if 'history' not in st.session_state:
     st.session_state.history = []
 if 'current_category' not in st.session_state:
@@ -69,12 +78,7 @@ category = st.selectbox(
         "❤️ Love & Relationships",
         "🧘 Mindfulness & Peace"
     ],
-    index=[
-        "🌟 Motivation & Positivity",
-        "💡 Business & Wealth",
-        "❤️ Love & Relationships",
-        "🧘 Mindfulness & Peace"
-    ].index(st.session_state.current_category),
+    index=0,
     key="category_select",
     on_change=update_category
 )
@@ -84,10 +88,6 @@ if st.button("🗑️ Clear Chat"):
     st.session_state.chat = model.start_chat(history=[])
     st.session_state.history = []
     st.session_state.current_category = category
-
-# 👉 Start Chat
-if st.session_state.chat is None:
-    st.session_state.chat = model.start_chat(history=[])
 
 # 👉 Chat Display
 chat_container = st.container()
@@ -99,21 +99,23 @@ with chat_container:
             avatar = "🧑"
             bubble_class = "user-bubble"
             alignment = "flex-end"
-            avatar_position = "after"  # Avatar AFTER bubble for user
+        elif speaker == "error":
+            avatar = "⚠️"
+            bubble_class = "error-bubble"
+            alignment = "flex-start"
         else:
             avatar = "🤖"
             bubble_class = "bot-bubble"
             alignment = "flex-start"
-            avatar_position = "before"  # Avatar BEFORE bubble for bot
 
         st.markdown(f'''
             <div style="display: flex; justify-content: {alignment}; margin-top: 10px;">
                 <div style="display: flex; align-items: flex-start; gap: 8px;">
-                    {'<div style="font-size:24px;">' + avatar + '</div>' if avatar_position == "before" else ''}
+                    {'<div style="font-size:24px;">' + avatar + '</div>' if speaker != 'user' else ''}
                     <div class="{bubble_class}">
-                        <strong>{'You' if speaker == 'user' else 'WiseBuddy'}:</strong><br>{message}
+                        <strong>{'You' if speaker == 'user' else 'WiseBuddy' if speaker == 'bot' else 'Error'}:</strong><br>{message}
                     </div>
-                    {'<div style="font-size:24px;">' + avatar + '</div>' if avatar_position == "after" else ''}
+                    {'<div style="font-size:24px;">' + avatar + '</div>' if speaker == 'user' else ''}
                 </div>
             </div>
         ''', unsafe_allow_html=True)
@@ -125,40 +127,22 @@ user_input = st.chat_input("💭 Type your message here:")
 
 # 👉 Generate Response
 if user_input:
-    # Add user message to both our history and Gemini's history
     st.session_state.history.append(("user", user_input))
     
-    # Fixed syntax for adding to Gemini's history
-    st.session_state.chat.history.append({
-        "role": "user",
-        "parts": [{"text": user_input}]
-    })
-    
-    # Create system instruction with current category
-    system_instruction = (
-        f"You are WiseBuddy, a friendly advice chatbot specializing in {st.session_state.current_category}. "
-        "Respond in a kind, supportive, and helpful manner. Keep responses concise but meaningful."
-    )
-    
-    with st.spinner("🤖 WiseBuddy is typing..."):
-        try:
-            # Send the entire conversation history to Gemini
-            response = st.session_state.chat.send_message(
-                content=user_input,
-                system_instruction=system_instruction
-            )
+    try:
+        # Create prompt with category context
+        prompt = f"""You are WiseBuddy, a friendly advice chatbot specializing in {st.session_state.current_category}. 
+        Respond to the user in a kind, supportive manner. Keep responses concise but meaningful.
+        
+        User: {user_input}"""
+        
+        with st.spinner("🤖 WiseBuddy is typing..."):
+            response = st.session_state.chat.send_message(prompt)
             bot_response = response.text
-            
-            # Add bot response to both histories
             st.session_state.history.append(("bot", bot_response))
             
-            # Fixed syntax for adding to Gemini's history
-            st.session_state.chat.history.append({
-                "role": "model",
-                "parts": [{"text": bot_response}]
-            })
-        except Exception as e:
-            st.error(f"⚠️ Error generating response: {str(e)}")
-            st.session_state.history.append(("bot", "Sorry, I encountered an error. Please try again."))
+    except Exception as e:
+        error_msg = f"API Error: {str(e)}" if "API" in str(e) else "Sorry, I encountered an error. Please try again."
+        st.session_state.history.append(("error", error_msg))
     
     st.rerun()
