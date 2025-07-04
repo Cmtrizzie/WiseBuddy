@@ -1,6 +1,6 @@
 WiseBuddy: Auto-Switch Multi-API Chatbot (Streamlit)
 
-import streamlit as st import google.generativeai as genai from huggingface_hub import InferenceClient import requests import random
+import streamlit as st import google.generativeai as genai from huggingface_hub import InferenceClient import requests
 
 =========================
 
@@ -53,8 +53,8 @@ try:
     headers = {"Authorization": f"Bearer {DEEPINFRA_API_KEY}"}
     json_data = {"inputs": prompt, "parameters": {"max_new_tokens": 150}}
     response = requests.post("https://api.deepinfra.com/v1/inference/meta-llama/Llama-3-8b-chat", headers=headers, json=json_data)
-    if response.ok:
-        return response.json().get('generated_text', '...')
+    if response.ok and 'generated_text' in response.json():
+        return response.json().get('generated_text')
 except:
     pass
 
@@ -69,7 +69,7 @@ try:
         "messages": [{"role": "user", "content": prompt}]
     }
     response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=json_data)
-    if response.ok:
+    if response.ok and 'choices' in response.json():
         return response.json()['choices'][0]['message']['content']
 except:
     pass
@@ -108,6 +108,4 @@ st.markdown("""
 """, unsafe_allow_html=True)for speaker, message in st.session_state.chat_history: st.markdown(f""" <div style='background-color:#f9f9f9; padding:10px; margin-bottom:10px; border-radius:8px;'> <strong>{speaker}:</strong><br>{message} </div> """, unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
-
-End of Code
 
