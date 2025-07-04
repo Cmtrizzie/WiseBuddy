@@ -1,6 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 import random
+import time
 
 # 👉 Configure your actual Gemini API key - Use Streamlit Secrets for production!
 # For local testing, you can temporarily put it here, but st.secrets is best.
@@ -15,36 +16,48 @@ st.set_page_config(page_title="WiseBuddy 🧠", page_icon="🤖", layout="center
 # 👉 CSS Styling
 st.markdown("""
     <style>
-    .big-font { font-size:26px !important; font-weight:bold; color:#2c3e50; }
-    .advice-box { background-color:#fff; padding:15px; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,0.1); color:#333; font-size:17px; margin-top:10px; }
+    .big-font { 
+        font-size:26px !important; 
+        font-weight:bold; 
+        color:#2c3e50; 
+        margin-bottom: 10px;
+    }
+    .quote-container {
+        background-color:#e6e6fa;
+        padding:10px;
+        border-radius:10px;
+        text-align:center;
+        margin-bottom: 20px;
+        font-style: italic;
+    }
     .user-bubble { 
         background-color:#d1e7dd; 
         padding:12px 15px; 
-        border-radius:15px; 
-        max-width:70%; 
+        border-radius:15px 15px 0 15px; 
+        max-width:80%; 
         font-size:16px; 
         margin-left:auto; 
-        align-self: flex-end; /* Align to the right */
-        word-wrap: break-word; /* Ensure text wraps */
+        margin-bottom: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .bot-bubble { 
         background-color:#fff3cd; 
         padding:12px 15px; 
-        border-radius:15px; 
-        max-width:70%; 
+        border-radius:15px 15px 15px 0; 
+        max-width:80%; 
         font-size:16px; 
         margin-right:auto; 
-        align-self: flex-start; /* Align to the left */
-        word-wrap: break-word; /* Ensure text wraps */
+        margin-bottom: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .chat-container { 
-        display:flex; 
-        flex-direction:column; 
-        gap:10px; 
-        margin-top:10px; 
-        height: 60vh; /* Fixed height for chat area */
-        overflow-y: auto; /* Scrollable */
-        padding-right: 10px; /* Space for scrollbar */
+        height: 60vh;
+        overflow-y: auto;
+        padding: 15px;
+        background-color: #f9f9f9;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #e6e6e6;
     }
     .stSelectbox label {
         font-weight: bold;
@@ -59,9 +72,35 @@ st.markdown("""
         font-size: 15px;
         cursor: pointer;
         transition: background-color 0.3s;
+        margin-bottom: 15px;
     }
     .stButton>button:hover {
         background-color: #5a54d4;
+    }
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        padding: 10px 15px;
+        background-color: #fff3cd;
+        border-radius: 15px;
+        max-width: 100px;
+        margin-bottom: 8px;
+    }
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        background-color: #666;
+        border-radius: 50%;
+        margin: 0 2px;
+        animation: typing 1.4s infinite ease-in-out;
+    }
+    .typing-dot:nth-child(1) { animation-delay: 0s; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes typing {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-5px); }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -76,37 +115,30 @@ quotes = [
     "❤️ You are stronger than you think.",
     "🔥 Dream big. Start small. Act now."
 ]
-st.markdown(f'<div style="background-color:#e6e6fa;padding:10px;border-radius:10px;text-align:center;"><em>{random.choice(quotes)}</em></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="quote-container"><em>{random.choice(quotes)}</em></div>', unsafe_allow_html=True)
 
-# 👉 Initialize Chat History and Category
-if 'chat' not in st.session_state:
-    st.session_state.chat = None # Will be initialized on first run or clear
-if 'history' not in st.session_state:
-    st.session_state.history = []
-if 'current_category' not in st.session_state:
-    st.session_state.current_category = "🌟 Motivation & Positivity"
+# 👉 Initialize session state
+def initialize_session():
+    return {
+        "chat": model.start_chat(history=[]),
+        "history": [],
+        "current_category": "🌟 Motivation & Positivity",
+        "is_processing": False
+    }
 
-# 👉 Function to initialize/clear chat
-def initialize_chat_session():
-    st.session_state.chat = model.start_chat(history=[])
-    st.session_state.history = [("bot", f"Hello! I'm WiseBuddy, your AI advisor in **{st.session_state.current_category}**. How can I assist you today?")]
-    # Note: The above initial bot message is *not* sent to the model's history,
-    # as start_chat() creates a fresh history for the model. This is just for display.
-
-# Initialize chat if not exists or if category changed recently (handled by update_category)
-if st.session_state.chat is None or st.session_state.history == []:
-    initialize_chat_session()
+if "app_state" not in st.session_state:
+    st.session_state.app_state = initialize_session()
 
 # 👉 Category Select with persistence
 def update_category():
-    old_category = st.session_state.current_category
     new_category = st.session_state.category_select
-    
-    if old_category != new_category:
-        st.session_state.current_category = new_category
-        # Clear chat when category changes for a fresh start
-        initialize_chat_session()
-    
+    if new_category != st.session_state.app_state["current_category"]:
+        st.session_state.app_state = initialize_session()
+        st.session_state.app_state["history"].append(
+            ("bot", f"Hello! I'm now your advisor in **{new_category}**. How can I assist you today?")
+        )
+        st.session_state.app_state["current_category"] = new_category
+
 category = st.selectbox(
     "📝 Choose your advice style:",
     options=[
@@ -120,85 +152,98 @@ category = st.selectbox(
         "💡 Business & Wealth",
         "❤️ Love & Relationships",
         "🧘 Mindfulness & Peace"
-    ].index(st.session_state.current_category),
+    ].index(st.session_state.app_state["current_category"]),
     key="category_select",
     on_change=update_category
 )
 
 # 👉 Clear Chat Button
-if st.button("🗑️ Clear Chat"):
-    initialize_chat_session()
-    st.rerun() # Rerun to reflect the cleared chat immediately
+if st.button("🗑️ Clear Chat", use_container_width=True):
+    st.session_state.app_state = initialize_session()
+    st.session_state.app_state["history"].append(
+        ("bot", f"Hello! I'm WiseBuddy, your AI advisor in **{st.session_state.app_state['current_category']}**. How can I assist you today?")
+    )
+    st.rerun()
 
-# 👉 Display Chat History
-chat_container = st.container(height=400, border=True) # Use a fixed height container
+# 👉 Chat Display
+chat_container = st.container()
 with chat_container:
-    # We don't need the outer <div> with chat-container class here if st.container is used
-    # But the inner bubbles still use their styles
-    for speaker, message in st.session_state.history:
+    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+    
+    for speaker, message in st.session_state.app_state["history"]:
         if speaker == "user":
             st.markdown(f'''
                 <div class="user-bubble">
                     <strong>You:</strong><br>{message}
                 </div>
             ''', unsafe_allow_html=True)
-        else: # speaker == "bot"
+        elif speaker == "bot":
             st.markdown(f'''
                 <div class="bot-bubble">
                     <strong>WiseBuddy 🤖:</strong><br>{message}
                 </div>
             ''', unsafe_allow_html=True)
+        elif speaker == "typing":
+            st.markdown(f'''
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            ''', unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # 👉 User Input
 user_input = st.chat_input("💭 Type your message here:")
 
 # 👉 Process User Input
-if user_input:
-    # Add user message to history
-    st.session_state.history.append(("user", user_input))
-    
-    # Add a temporary "thinking" message from bot
-    st.session_state.history.append(("bot", "WiseBuddy is thinking... 🤔"))
-    
-    # Rerun to show user message and thinking message immediately
-    st.rerun() 
-
-# This part runs AFTER rerun, so it will execute after the above block
-# when the app reruns. We need to ensure it only runs once per input.
-if user_input and st.session_state.history[-1][1] == "WiseBuddy is thinking... 🤔":
-    
-    # Generate context-aware prompt
-    # The ChatSession itself maintains the history for the model.
-    # We only need to guide its persona and the current intent.
-    system_instruction = f"""
-    You are WiseBuddy, a compassionate, knowledgeable, and encouraging AI assistant. 
-    Your primary role is to provide wise advice and insights specifically in the domain of 
-    '{st.session_state.current_category}'.
-    
-    When responding:
-    - Maintain a helpful and positive tone.
-    - Offer practical advice or thoughtful perspectives.
-    - Keep answers concise but comprehensive.
-    - Do not break character as WiseBuddy.
-    - If the user's question seems outside your scope for the chosen category, gently guide them back or suggest changing categories.
-    """
-    
-    try:
-        with st.spinner("WiseBuddy is crafting wisdom..."):
-            # Send message to the model. The chat session handles its internal history.
-            response = st.session_state.chat.send_message(user_input, 
-                                                        generation_config={'temperature': 0.7}, # Adjust creativity
-                                                        stream=False) # For now, no streaming
-            bot_response = response.text
-            
-            # Replace the "thinking" message with the actual response
-            st.session_state.history[-1] = ("bot", bot_response)
-            
-    except Exception as e:
-        st.error(f"WiseBuddy encountered an issue: {e}. Please try again or clear chat.")
-        # Revert the "thinking" message to an error or similar
-        st.session_state.history[-1] = ("bot", "Oops! WiseBuddy had a momentary lapse. Please try again.")
-        
-    # Rerun to update chat display with the actual response or error
+if user_input and not st.session_state.app_state["is_processing"]:
+    # Set processing state
+    st.session_state.app_state["is_processing"] = True
+    st.session_state.app_state["history"].append(("user", user_input))
+    st.session_state.app_state["history"].append(("typing", ""))
     st.rerun()
 
+# Process Gemini response after UI update
+if st.session_state.app_state.get("is_processing", False) and st.session_state.app_state["history"][-1][0] == "typing":
+    try:
+        # Generate system instruction based on category
+        system_instruction = f"""
+        You are WiseBuddy, a compassionate, knowledgeable, and encouraging AI assistant. 
+        Your primary role is to provide wise advice and insights specifically in the domain of 
+        '{st.session_state.app_state["current_category"]}'.
+        
+        When responding:
+        - Maintain a helpful and positive tone
+        - Offer practical advice or thoughtful perspectives
+        - Keep answers concise but comprehensive (1-3 paragraphs)
+        - Do not break character as WiseBuddy
+        - If the question seems outside your scope, gently guide back to your expertise
+        - Use emojis sparingly to enhance communication
+        """
+        
+        # Send message to Gemini
+        response = st.session_state.app_state["chat"].send_message(
+            user_input,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.7,
+                max_output_tokens=500
+            ),
+            system_instruction=system_instruction
+        )
+        
+        # Get response and remove typing indicator
+        bot_response = response.text
+        st.session_state.app_state["history"].pop()  # Remove typing indicator
+        st.session_state.app_state["history"].append(("bot", bot_response))
+        
+    except Exception as e:
+        # Handle errors gracefully
+        st.session_state.app_state["history"].pop()  # Remove typing indicator
+        st.session_state.app_state["history"].append(("bot", "⚠️ Sorry, I'm having trouble thinking clearly right now. Please try again later."))
+        st.error(f"API Error: {str(e)}")
+    finally:
+        # Reset processing state
+        st.session_state.app_state["is_processing"] = False
+        st.rerun()
