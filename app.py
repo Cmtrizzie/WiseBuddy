@@ -1,14 +1,41 @@
 import streamlit as st
 import google.generativeai as genai
 import random
-import time
+import os
 from datetime import datetime
 
-# 👉 Configure API key via secrets
-try:
-    genai.configure(api_key=st.secrets["AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4"])
-except:
-    st.error("Gemini API key not found. Please add it to Streamlit secrets.")
+# 👉 Gemini API Configuration
+def setup_gemini():
+    """Handle Gemini API key setup securely from file"""
+    # First try Streamlit secrets (for deployment)
+    try:
+        if "GEMINI_API_KEY" in st.secrets:
+            api_key = st.secrets["GEMINI_API_KEY"]
+            genai.configure(api_key=api_key)
+            return True
+    except:
+        pass
+    
+    # Then try local file (for local development)
+    try:
+        with open("gemini_api_key.txt", "r") as f:
+            api_key = f.read().strip()
+        
+        if api_key.startswith("AI"):
+            genai.configure(api_key=api_key)
+            return True
+        else:
+            st.error("Invalid API key format in file")
+            return False
+    except FileNotFoundError:
+        st.error("API key file not found. Please create 'gemini_api_key.txt' with your key.")
+        return False
+    except Exception as e:
+        st.error(f"Error reading API key: {str(e)}")
+        return False
+
+# Initialize Gemini API
+if not setup_gemini():
     st.stop()
 
 # 👉 Cache model loading for performance
@@ -26,7 +53,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 👉 CSS Styling
+# 👉 CSS Styling (same as before)
 st.markdown("""
     <style>
     /* Main chat container */
@@ -269,7 +296,7 @@ if send_button and user_input:
     with st.empty():
         typing_html = '''
             <div class="typing-indicator">
-                WiseBudty is thinking
+                WiseBuddy is thinking
                 <span class="typing-dot"></span>
                 <span class="typing-dot"></span>
                 <span class="typing-dot"></span>
@@ -328,4 +355,4 @@ if send_button and user_input:
     })
     
     # Rerun to update the chat display
-    st.experimental_rerun()
+    st.rerun()
