@@ -7,7 +7,7 @@ import os
 # 👉 Streamlit Page Setup
 st.set_page_config(page_title="WiseBuddy 🧠", page_icon="🤖", layout="centered")
 
-# 👉 API Key Setup - More reliable implementation
+# 👉 API Key Setup
 st.markdown("### 🔑 Gemini API Key Setup")
 api_key = st.text_input("Enter your Gemini API key:", type="password", 
                         help="Get your API key from https://aistudio.google.com/app/apikey",
@@ -22,14 +22,14 @@ try:
     # Configure API with validation
     genai.configure(api_key=api_key)
     
-    # Test the API with a simple request
-    test_model = genai.GenerativeModel('gemini-pro')
+    # Test the API with a simple request using the correct model
+    test_model = genai.GenerativeModel('gemini-1.5-flash')
     test_response = test_model.generate_content("Hello")
     
     if not test_response.text:
         raise ValueError("API test failed - no response received")
     
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = test_model  # Use the same model for the chat
     st.session_state.api_ready = True
     st.success("✅ API connected successfully!")
 except Exception as e:
@@ -276,7 +276,7 @@ for speaker, message in st.session_state.app_state["history"]:
                     <strong>WiseBuddy:</strong><br>{message}
                 </div>
             </div>
-        """, unsafe_allow_html=True)
+        ""', unsafe_allow_html=True)
     elif speaker == "typing":
         st.markdown(f"""
             <div style="display:flex;justify-content:flex-start;align-items:flex-end;margin-bottom:15px;">
@@ -318,19 +318,13 @@ if st.session_state.app_state.get("is_processing", False) and st.session_state.a
         {st.session_state.app_state["history"][-2][1] if len(st.session_state.app_state["history"]) > 2 else "New conversation"}
         """
         
-        # Send message to Gemini with CORRECT safety settings
+        # Send message to Gemini
         response = model.generate_content(
             user_input,
             generation_config=genai.types.GenerationConfig(
                 temperature=0.8,
                 max_output_tokens=500
             ),
-            safety_settings=[
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
-            ],
             system_instruction=system_instruction
         )
         
