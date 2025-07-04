@@ -182,4 +182,3 @@ if user_input:
     
     # Rerun the app to update the chat display with the new message
     st.rerun()
-
