@@ -3,11 +3,11 @@ import google.generativeai as genai
 import random
 
 # 👉 Configure your Gemini API Key
-genai.configure(api_key="YOUR_API_KEY_HERE")
+genai.configure(api_key="AIzaSyCCrH9lwWQcH38Vbv287H-CTPXaR5U_lF4")
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 👉 Streamlit Page Setup
-st.set_page_config(page_title="WiseBuddy 🧠", page_icon="🤖", layout="centered")
+st.set_page_config(page_title="WiseBuddy �", page_icon="🤖", layout="centered")
 
 # 👉 CSS Styling (Bubbles + Background + Shadows)
 st.markdown("""
@@ -125,27 +125,32 @@ user_input = st.chat_input("💭 Type your message here:")
 
 # 👉 Generate Response
 if user_input:
+    # Add user message to both our history and Gemini's history
     st.session_state.history.append(("user", user_input))
+    st.session_state.chat.history.append(  # Add to Gemini's history
+        genai.types.Content(role="user", parts=[genai.types.Part(text=user_input)])
     
-    # Get last bot response for context (if exists)
-    prev_context = ""
-    if len(st.session_state.history) > 1:
-        # Search backwards through history for last bot message
-        for msg in reversed(st.session_state.history[:-1]):
-            if msg[0] == "bot":
-                prev_context = msg[1]
-                break
-    
-    prompt = f"""
-    You are WiseBuddy, a friendly advice chatbot specializing in {st.session_state.current_category}. 
-    {f"The previous conversation context was: '{prev_context}'" if prev_context else "This is a new conversation."}
-    
-    Respond kindly to: {user_input}
-    """
+    # Create system instruction with current category
+    system_instruction = (
+        f"You are WiseBuddy, a friendly advice chatbot specializing in {st.session_state.current_category}. "
+        "Respond in a kind, supportive, and helpful manner."
+    )
     
     with st.spinner("🤖 WiseBuddy is typing..."):
-        response = st.session_state.chat.send_message(prompt)
-        bot_response = response.text
-        st.session_state.history.append(("bot", bot_response))
+        try:
+            # Send the entire conversation history to Gemini
+            response = st.session_state.chat.send_message(
+                content=user_input,
+                system_instruction=system_instruction
+            )
+            bot_response = response.text
+            
+            # Add bot response to both histories
+            st.session_state.history.append(("bot", bot_response))
+            st.session_state.chat.history.append(  # Add to Gemini's history
+                genai.types.Content(role="model", parts=[genai.types.Part(text=bot_response)])
+        except Exception as e:
+            st.error(f"⚠️ Error generating response: {str(e)}")
+            st.session_state.history.append(("bot", "Sorry, I encountered an error. Please try again."))
     
     st.rerun()
