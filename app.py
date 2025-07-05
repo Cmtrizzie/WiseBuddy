@@ -19,35 +19,53 @@ hf_client = InferenceClient(HUGGINGFACE_API_KEY)
 # Set page config
 st.set_page_config(page_title="WiseBuddy Chat", page_icon="💬", layout="wide")
 
-# Custom CSS for readability and chat bubbles
-st.markdown("""
+# Dark mode toggle
+if 'dark_mode' not in st.session_state:
+    st.session_state['dark_mode'] = False
+
+st.sidebar.title("🌙 Settings")
+st.session_state['dark_mode'] = st.sidebar.toggle("Enable Dark Mode", value=st.session_state['dark_mode'])
+
+# Apply dark or light theme
+if st.session_state['dark_mode']:
+    background_color = "#1e1e1e"
+    text_color = "#e0e0e0"
+    user_bubble_color = "#3c3c3c"
+    bot_bubble_color = "#2a2a2a"
+else:
+    background_color = "#ffffff"
+    text_color = "#000000"
+    user_bubble_color = "#d1e7dd"
+    bot_bubble_color = "#fff3cd"
+
+# Custom CSS for styling
+st.markdown(f"""
     <style>
-    .chat-bubble {
-        background-color: #f1f1f1;
-        color: #333;
+    .main {{
+        background-color: {background_color};
+        color: {text_color};
+    }}
+    .chat-bubble {{
         padding: 10px 15px;
         border-radius: 15px;
         margin: 5px 0;
         max-width: 70%;
         word-wrap: break-word;
-    }
-    .user-bubble {
-        background-color: #d1e7dd;
-        color: #000;
-        text-align: left;
-    }
-    .bot-bubble {
-        background-color: #fff3cd;
-        color: #000;
-        text-align: left;
-    }
+    }}
+    .user-bubble {{
+        background-color: {user_bubble_color};
+        color: {text_color};
+    }}
+    .bot-bubble {{
+        background-color: {bot_bubble_color};
+        color: {text_color};
+    }}
     </style>
 """, unsafe_allow_html=True)
 
 st.title("💬 WiseBuddy Chat")
 st.write("Chat about anything—life, goals, or just venting.")
 
-# Fallback advice messages
 fallback_responses = [
     "🌱 Every big journey starts with a single small step.",
     "✨ Keep going—you’re stronger than you think.",
@@ -99,18 +117,16 @@ def get_response(prompt):
 
     return random.choice(fallback_responses)
 
-# Input and response handling
 user_input = st.chat_input("Type your message...")
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     reply = get_response(user_input)
     st.session_state.messages.append({"role": "assistant", "content": reply})
 
+# Auto-scroll to bottom (experimental)
+st.markdown("<script>window.scrollTo(0,document.body.scrollHeight);</script>", unsafe_allow_html=True)
+
 # Display chat messages
 for message in st.session_state.messages:
-    if message["role"] == "user":
-        st.markdown(f'<div class="chat-bubble user-bubble">{message["content"]}</div>', unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div class="chat-bubble bot-bubble">{message["content"]}</div>', unsafe_allow_html=True)
-
-# End of Step 1
+    role_class = "user-bubble" if message["role"] == "user" else "bot-bubble"
+    st.markdown(f'<div class="chat-bubble {role_class}">{message["content"]}</div>', unsafe_allow_html=True)
