@@ -2,294 +2,304 @@ import streamlit as st
 import random
 import uuid
 import datetime
+import re
 
 # --- Initialize Session State for Multiple Chats ---
 if 'chat_sessions' not in st.session_state:
     st.session_state['chat_sessions'] = {}
     st.session_state['active_chat'] = None
-    st.session_state['search_query'] = "" # For sidebar search
-    st.session_state['show_rename_input'] = {} # To control rename input visibility
-    # This will be used to pre-fill the input field from suggestion buttons
-    if 'pre_fill_input' not in st.session_state:
-        st.session_state['pre_fill_input'] = ""
+    st.session_state['search_query'] = ""
+    st.session_state['show_rename_input'] = {}
+    st.session_state['pre_fill_input'] = ""
+    st.session_state['expanded_menu'] = None
+    st.session_state['tagged_chats'] = {}  # For comrade tagging
+    st.session_state['archived_chats_visible'] = False  # Archive visibility toggle
 
 # --- Helper Functions for Chat Management ---
-
 def new_chat():
-    """Creates a new chat session and sets it as active."""
     chat_id = str(uuid.uuid4())
     st.session_state['chat_sessions'][chat_id] = {
         'title': f'New Chat {len(st.session_state["chat_sessions"]) + 1}',
         'messages': [],
-        'timestamp': datetime.datetime.now().isoformat(), # Add timestamp
-        'archived': False # New field for archiving
+        'timestamp': datetime.datetime.now().isoformat(),
+        'archived': False,
+        'tagged': False  # Comrade tag status
     }
     st.session_state['active_chat'] = chat_id
-    st.session_state['show_rename_input'] = {} # Reset rename input visibility
-    st.session_state['pre_fill_input'] = "" # Clear pre-fill on new chat
+    st.session_state['show_rename_input'] = {}
+    st.session_state['pre_fill_input'] = ""
+    st.session_state['expanded_menu'] = None
 
 def rename_chat(chat_id, new_title):
-    """Renames a chat session."""
     if chat_id in st.session_state['chat_sessions']:
         st.session_state['chat_sessions'][chat_id]['title'] = new_title
-        st.session_state['show_rename_input'][chat_id] = False # Hide input after rename
-        st.experimental_rerun() # Rerun to update sidebar title
+        st.session_state['show_rename_input'][chat_id] = False
+        st.experimental_rerun()
 
 def delete_chat(chat_id):
-    """Deletes a chat session."""
     if chat_id in st.session_state['chat_sessions']:
         del st.session_state['chat_sessions'][chat_id]
         if st.session_state['active_chat'] == chat_id:
-            # If deleting active chat, switch to another or create new
-            available_chats = [cid for cid, chat_data in st.session_state['chat_sessions'].items() if not chat_data['archived']]
-            if available_chats:
-                st.session_state['active_chat'] = available_chats[0] # Just pick the first available
-            else:
-                new_chat() # No chats left, create a new one
+            available_chats = [cid for cid, chat_data in st.session_state['chat_sessions'].items() 
+                              if not chat_data['archived']]
+            st.session_state['active_chat'] = available_chats[0] if available_chats else new_chat()
         st.experimental_rerun()
 
 def archive_chat(chat_id):
-    """Archives a chat session (placeholder logic)."""
     if chat_id in st.session_state['chat_sessions']:
         st.session_state['chat_sessions'][chat_id]['archived'] = True
-        # If archiving active chat, switch to another
         if st.session_state['active_chat'] == chat_id:
-            available_chats = [cid for cid, chat_data in st.session_state['chat_sessions'].items() if not chat_data['archived']]
-            if available_chats:
-                st.session_state['active_chat'] = available_chats[0]
-            else:
-                new_chat() # All chats archived, start a new one
-        st.experimental_rerun() # Rerun to update sidebar
+            available_chats = [cid for cid, chat_data in st.session_state['chat_sessions'].items() 
+                              if not chat_data['archived']]
+            st.session_state['active_chat'] = available_chats[0] if available_chats else new_chat()
+        st.experimental_rerun()
+
+def toggle_comrade_tag(chat_id):
+    if chat_id in st.session_state['chat_sessions']:
+        current_state = st.session_state['chat_sessions'][chat_id].get('tagged', False)
+        st.session_state['chat_sessions'][chat_id]['tagged'] = not current_state
 
 def ensure_chat_exists():
-    """Ensures there's always at least one chat session and an active chat."""
     if not st.session_state['chat_sessions']:
         new_chat()
     if st.session_state['active_chat'] not in st.session_state['chat_sessions']:
-        # Try to find an unarchived chat
-        unarchived_chats = [cid for cid, chat_data in st.session_state['chat_sessions'].items() if not chat_data['archived']]
-        if unarchived_chats:
-            st.session_state['active_chat'] = unarchived_chats[0]
-        else:
-            new_chat() # If all are archived, create new one
+        unarchived_chats = [cid for cid, chat_data in st.session_state['chat_sessions'].items() 
+                           if not chat_data['archived']]
+        st.session_state['active_chat'] = unarchived_chats[0] if unarchived_chats else new_chat()
+
+def generate_chat_title(user_input):
+    """Generate a meaningful title from user input"""
+    # Extract first meaningful sentence
+    first_sentence = re.split(r'[.!?]', user_input)[0].strip()
+    words = first_sentence.split()[:5]
+    return ' '.join(words) + ("..." if len(first_sentence) > 15 else "")
 
 # --- Streamlit Page Configuration ---
 st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="WiseBuddy Chat")
 
-# --- Custom CSS for ChatGPT-like Styling ---
+# --- Enhanced CSS for ChatGPT-like Styling ---
 st.markdown("""
 <style>
-    /* General layout adjustments for full height and flexbox */
-    html, body {
+    /* General Styling */
+    :root {
+        --sidebar-bg: #202123;
+        --main-bg: #343541;
+        --input-bg: #40414f;
+        --border-color: #444654;
+        --text-primary: #ececf1;
+        --text-secondary: #8e8ea0;
+        --accent: #10a37f;
+        --user-bubble: #007bff;
+        --bot-bubble: #444654;
+    }
+    
+    html, body, .stApp {
         margin: 0;
         padding: 0;
         height: 100%;
-        overflow: hidden; /* Prevent body scroll */
+        background-color: var(--main-bg);
+        color: var(--text-primary);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
     }
+    
     .stApp {
-        margin: 0;
-        padding: 0;
         display: flex;
-        flex-direction: row; /* Sidebar and main content side-by-side */
-        height: 100vh; /* Full viewport height */
-        background-color: #343541; /* Dark background for main chat area */
+        flex-direction: row;
+        height: 100vh;
     }
 
-    /* Sidebar specific styling */
+    /* Sidebar Styling */
     .stSidebar {
-        width: 260px !important; /* Fixed width for sidebar */
-        min-width: 260px !important;
-        max-width: 260px !important;
-        background-color: #202123; /* Darker background for sidebar */
-        color: #ececf1;
-        padding-top: 20px;
+        width: 260px !important;
+        background-color: var(--sidebar-bg);
+        padding-top: 10px;
         box-shadow: 2px 0 5px rgba(0,0,0,0.2);
         display: flex;
         flex-direction: column;
     }
-    .stSidebar > div:first-child { /* Target the inner div containing sidebar content */
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-    }
+    
     .sidebar-header {
-        padding: 0 15px 15px 15px;
-        color: #ececf1;
+        padding: 0 15px 10px 15px;
     }
-    .sidebar-header h2 {
-        margin-bottom: 10px;
-        font-size: 1.2em;
-    }
-    .sidebar-header .stButton button {
-        background-color: #343541;
-        color: #ececf1;
-        border: 1px solid #444654;
+    
+    .sidebar-header .new-chat-btn {
+        background-color: var(--main-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
         width: 100%;
-        text-align: left;
         padding: 10px 15px;
         border-radius: 5px;
         font-weight: normal;
         transition: background-color 0.2s ease;
+        text-align: center;
+        cursor: pointer;
     }
-    .sidebar-header .stButton button:hover {
-        background-color: #444654;
+    
+    .sidebar-header .new-chat-btn:hover {
+        background-color: var(--border-color);
     }
+    
+    .sidebar-search {
+        padding: 10px 15px 5px 15px;
+    }
+    
+    .sidebar-search input {
+        background-color: var(--main-bg) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 5px !important;
+        padding: 8px 12px !important;
+    }
+    
+    .section-title {
+        padding: 10px 15px 5px 15px;
+        color: var(--text-secondary);
+        font-size: 0.85em;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
     .sidebar-chat-list {
-        flex-grow: 1; /* Makes the chat list take up available space */
-        overflow-y: auto; /* Scroll for chat list */
+        flex-grow: 1;
+        overflow-y: auto;
         padding: 0 15px;
-        margin-top: 10px;
     }
+    
     .sidebar-chat-item {
-        background-color: #343541;
-        color: #ececf1;
+        background-color: var(--main-bg);
+        color: var(--text-primary);
         border: none;
-        padding: 10px 15px;
-        margin-bottom: 5px;
+        padding: 8px 12px;
+        margin-bottom: 4px;
         border-radius: 5px;
         cursor: pointer;
         transition: background-color 0.2s ease;
         display: flex;
         align-items: center;
-        justify-content: space-between;
         font-size: 0.9em;
+        position: relative;
     }
+    
     .sidebar-chat-item:hover {
-        background-color: #444654;
+        background-color: var(--border-color);
     }
+    
     .sidebar-chat-item.active-chat {
-        background-color: #444654;
-        font-weight: bold;
+        background-color: var(--border-color);
     }
+    
     .chat-item-title {
         flex-grow: 1;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        padding-right: 10px; /* Space for buttons */
+        padding-right: 25px;
     }
-    .chat-item-actions {
-        display: flex;
-        gap: 5px;
-    }
-    .chat-item-actions .stButton button {
-        background: none !important;
-        border: none !important;
-        color: #8e8ea0 !important;
-        font-size: 0.8em !important;
-        padding: 5px !important;
-        margin: 0 !important;
-        line-height: 1 !important;
-        min-height: unset !important;
-        width: auto !important; /* Ensure buttons are not full width */
-    }
-    .chat-item-actions .stButton button:hover {
-        color: #ececf1 !important;
-        background-color: #555 !important;
-    }
-    .sidebar-footer {
-        padding: 15px;
-        border-top: 1px solid #3e3f4b;
-        color: #8e8ea0;
+    
+    .chat-status-icon {
+        position: absolute;
+        right: 10px;
         font-size: 0.9em;
     }
-    .sidebar-footer .stButton button {
-        background-color: #343541;
-        color: #ececf1;
-        border: none;
-        width: 100%;
-        text-align: left;
-        padding: 10px 15px;
-        border-radius: 5px;
-        transition: background-color 0.2s ease;
+    
+    .comrade-tag {
+        color: gold;
     }
-    .sidebar-footer .stButton button:hover {
-        background-color: #444654;
+    
+    .sidebar-footer {
+        padding: 15px;
+        border-top: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        font-size: 0.9em;
     }
-
-
-    /* Main content area */
-    .css-1d391kg { /* Target Streamlit's main content div (main element) */
-        flex-grow: 1;
+    
+    .user-profile {
         display: flex;
-        flex-direction: column;
-        height: 100vh;
-        overflow: hidden; /* Important to manage internal scrolling */
-        background-color: #343541; /* Dark background */
-        color: #ececf1;
+        align-items: center;
+        gap: 10px;
     }
-
-    /* Top header in main content area */
+    
+    .user-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background-color: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+    
+    /* Main Content Area */
     .main-header {
-        background-color: #343541; /* Match main background */
-        padding: 10px 20px;
-        border-bottom: 1px solid #444654;
+        background-color: var(--main-bg);
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--border-color);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        min-height: 50px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
     }
-    .main-header .stButton button {
-        background-color: #10a37f; /* ChatGPT green for Plus */
-        color: white;
-        border: none;
-        padding: 8px 15px;
-        border-radius: 20px;
-        font-weight: bold;
-        transition: background-color 0.2s ease;
-    }
-    .main-header .stButton button:hover {
-        background-color: #0d8a6e;
-    }
+    
     .chat-title-display {
         font-size: 1.1em;
-        font-weight: bold;
-        color: #ececf1;
+        font-weight: 500;
     }
-
-
-    /* Chat messages container */
+    
+    .get-plus-btn {
+        background-color: var(--accent) !important;
+        color: white !important;
+        border: none !important;
+        padding: 8px 15px !important;
+        border-radius: 20px !important;
+        font-weight: bold !important;
+        transition: background-color 0.2s ease !important;
+    }
+    
+    .get-plus-btn:hover {
+        background-color: #0d8a6e !important;
+    }
+    
     .chat-messages-container {
-        flex-grow: 1; /* Takes up available space */
-        overflow-y: auto; /* Scroll for messages */
+        flex-grow: 1;
+        overflow-y: auto;
         padding: 20px;
-        padding-bottom: 100px; /* Space for fixed input area */
+        padding-bottom: 100px;
         display: flex;
         flex-direction: column;
-        align-items: center; /* Center bubbles */
-        width: 100%; /* Ensure it spans full width */
     }
+    
     .message-row {
         display: flex;
         width: 100%;
-        justify-content: center; /* Center the message bubbles */
+        max-width: 800px;
+        margin: 0 auto 12px auto;
     }
+    
     .user-bubble, .bot-bubble {
-        max-width: 65%; /* Max width for message bubbles */
-        padding: 12px 18px;
-        margin: 8px 0;
+        max-width: 85%;
+        padding: 12px 16px;
         border-radius: 18px;
         word-wrap: break-word;
         font-size: 0.95em;
         line-height: 1.5;
-        box-shadow: 0 1px 1px rgba(0,0,0,0.05);
-        color: #ececf1; /* Text color for bubbles */
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
+    
     .user-bubble {
-        background-color: #007bff; /* A distinct blue for user */
-        align-self: flex-end;
-        margin-left: auto; /* Push to right */
+        background-color: var(--user-bubble);
+        margin-left: auto;
     }
+    
     .bot-bubble {
-        background-color: #444654; /* Darker gray for bot */
-        align-self: flex-start;
-        margin-right: auto; /* Push to left */
+        background-color: var(--bot-bubble);
+        margin-right: auto;
     }
-    .bot-bubble strong { /* For bolding in welcome messages etc. */
-        color: #ececf1;
-    }
-
-    /* Welcome screen */
+    
+    /* Welcome Screen */
     .welcome-screen {
         display: flex;
         flex-direction: column;
@@ -298,114 +308,109 @@ st.markdown("""
         flex-grow: 1;
         padding: 20px;
         text-align: center;
-        color: #8e8ea0;
-        width: 100%;
+        color: var(--text-secondary);
+        max-width: 700px;
+        margin: 0 auto;
     }
+    
     .welcome-screen h2 {
         font-size: 2em;
         margin-bottom: 30px;
-        color: #ececf1;
+        color: var(--text-primary);
+        font-weight: 600;
     }
+    
     .suggestion-buttons {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
         gap: 15px;
-        justify-content: center;
-        max-width: 700px;
         width: 100%;
     }
-    .suggestion-buttons .stButton button {
-        background-color: #444654;
-        color: #ececf1;
-        border: 1px solid #555;
-        padding: 15px 25px;
-        border-radius: 10px;
-        font-size: 1em;
-        font-weight: normal;
-        transition: background-color 0.2s ease;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        min-width: 180px; /* Ensure buttons have a minimum width */
+    
+    .suggestion-btn {
+        background-color: var(--bot-bubble) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-color) !important;
+        padding: 15px !important;
+        border-radius: 10px !important;
+        font-size: 1em !important;
+        font-weight: normal !important;
+        transition: background-color 0.2s ease !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
     }
-    .suggestion-buttons .stButton button:hover {
-        background-color: #555761;
+    
+    .suggestion-btn:hover {
+        background-color: var(--border-color) !important;
     }
-
-
-    /* Input area */
+    
+    /* Input Area */
     .input-area-container {
-        position: fixed; /* Fixed position relative to viewport */
+        position: fixed;
         bottom: 0;
-        left: 260px; /* Adjust based on sidebar width */
+        left: 260px;
         right: 0;
-        background: #343541; /* Match main background */
-        padding: 15px 20px;
-        border-top: 1px solid #444654;
+        background: var(--main-bg);
+        padding: 15px 0;
+        border-top: 1px solid var(--border-color);
         display: flex;
-        align-items: center;
-        justify-content: center; /* Center the input group */
-        gap: 10px;
-        box-sizing: border-box; /* Include padding in width */
+        justify-content: center;
     }
+    
+    .input-wrapper {
+        width: 100%;
+        max-width: 700px;
+        padding: 0 20px;
+    }
+    
     .input-group {
         display: flex;
         align-items: center;
-        background-color: #40414f; /* Darker background for input group */
+        background-color: var(--input-bg);
         border-radius: 25px;
-        max-width: 700px; /* Limit input width like ChatGPT */
-        width: 100%;
         padding: 5px 15px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
     }
-    /* Hide Streamlit default label for the text input */
-    .input-group .stTextInput > label {
-        display: none;
-    }
+    
     .input-group .stTextInput > div > div > input {
-        border-radius: 25px;
-        padding: 12px 15px;
-        border: none; /* No border for input */
-        background: transparent; /* Transparent background */
-        color: #ececf1;
-        font-size: 1em;
-        flex-grow: 1;
-        outline: none; /* Remove outline on focus */
-        box-shadow: none; /* Remove box shadow */
+        background: transparent !important;
+        color: var(--text-primary) !important;
+        border: none !important;
+        padding: 12px 5px !important;
+        font-size: 1em !important;
+        box-shadow: none !important;
     }
+    
     .input-group .stTextInput > div > div > input::placeholder {
-        color: #8e8ea0;
+        color: var(--text-secondary) !important;
     }
-    /* Style for buttons within the input group */
-    .input-group .stButton > button {
-        background: none;
-        border: none;
-        color: #8e8ea0; /* Gray for icons */
-        font-size: 1.5em; /* Larger icons */
-        padding: 5px 10px;
-        cursor: pointer;
-        transition: color 0.2s ease;
-        line-height: 1; /* Adjust line height for icon buttons */
-        min-height: unset; /* Remove min-height */
-        width: auto; /* Auto width */
-        margin: 0; /* Remove margin */
+    
+    .input-icon-btn {
+        background: none !important;
+        border: none !important;
+        color: var(--text-secondary) !important;
+        font-size: 1.4em !important;
+        padding: 8px 10px !important;
+        min-height: unset !important;
+        min-width: unset !important;
     }
-    .input-group .stButton > button:hover {
-        color: #ececf1;
+    
+    .input-icon-btn:hover {
+        color: var(--text-primary) !important;
     }
-    /* Specific styling for the send button (last button in group) */
-    .input-group .stButton:nth-last-child(2) > button { /* Target the send button specifically */
-        color: #10a37f; /* ChatGPT green for send */
-        font-size: 1.8em;
+    
+    .send-btn {
+        color: var(--accent) !important;
+        font-size: 1.6em !important;
     }
-    .input-group .stButton:nth-last-child(2) > button:hover {
-        color: #0d8a6e;
+    
+    .send-btn:hover {
+        color: #0d8a6e !important;
     }
-
+    
     /* Hide Streamlit default elements */
-    #MainMenu, header, footer {
-        visibility: hidden !important;
-        height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
+    #MainMenu, header, footer, .stDeployButton {
+        display: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -416,138 +421,132 @@ ensure_chat_exists()
 # --- Sidebar (Chat Navigation and Management) ---
 with st.sidebar:
     st.markdown("<div class='sidebar-header'>", unsafe_allow_html=True)
-    st.markdown("<h2>WiseBuddy</h2>", unsafe_allow_html=True)
-    if st.button("💬 New Chat", key="sidebar_new_chat_btn", help="Start a brand new conversation"):
-        new_chat()
-        st.experimental_rerun()
+    st.markdown("<div class='new-chat-btn' onclick='document.querySelector(\"[data-testid=baseButton-secondary]\").click()'>+ New chat</div>", unsafe_allow_html=True)
     st.markdown("</div>")
 
     # Search functionality
+    st.markdown("<div class='sidebar-search'>", unsafe_allow_html=True)
     st.session_state['search_query'] = st.text_input(
-        "Search chats",
+        "",
         value=st.session_state['search_query'],
-        placeholder="Search...",
+        placeholder="Search chats...",
         key="chat_search_input",
-        label_visibility="collapsed" # Hide default label
+        label_visibility="collapsed"
     )
+    st.markdown("</div>")
+
+    # Chats section
+    st.markdown("<div class='section-title'>Chats</div>", unsafe_allow_html=True)
     st.markdown("<div class='sidebar-chat-list'>", unsafe_allow_html=True)
 
-    # Sort chats by timestamp, newest first
+    # Filter and sort chats
+    all_chats = st.session_state['chat_sessions'].items()
+    filtered_chats = [
+        (chat_id, chat_data) for chat_id, chat_data in all_chats
+        if st.session_state['search_query'].lower() in chat_data['title'].lower() 
+        and not chat_data['archived']
+    ]
+    
+    # Sort by timestamp (newest first)
     sorted_chats = sorted(
-        [item for item in st.session_state['chat_sessions'].items() if not item[1]['archived']],
+        filtered_chats,
         key=lambda item: item[1]['timestamp'],
         reverse=True
     )
 
+    # Display chat list
     for chat_id, chat_data in sorted_chats:
-        # Filter by search query
-        if st.session_state['search_query'].lower() in chat_data['title'].lower():
-            is_active = (chat_id == st.session_state['active_chat'])
-            # Create a simple container for the chat item to apply overall styling
-            st.markdown(f"""
-                <div class='sidebar-chat-item {"active-chat" if is_active else ""}'>
-                    <div class='chat-item-title' onclick='
-                        // JavaScript to simulate Streamlit button click
-                        var button = document.querySelector("[key=\"select_chat_{chat_id}\"] > button");
-                        if (button) button.click();
-                    '>{chat_data['title']}</div>
-                    <div class='chat-item-actions'>
-                        <button onclick='
-                            var button = document.querySelector("[key=\"open_menu_{chat_id}\"] > button");
-                            if (button) button.click();
-                        '>...</button>
+        is_active = (chat_id == st.session_state['active_chat'])
+        status_icon = "⭐" if chat_data.get('tagged') else ""
+        
+        st.markdown(f"""
+            <div class='sidebar-chat-item {"active-chat" if is_active else ""}'
+                 onclick="document.querySelector('[data-testid=\"baseButton-secondary-{chat_id}\"]').click()">
+                <div class='chat-item-title'>{chat_data['title']}</div>
+                <div class='chat-status-icon'>{status_icon}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+        # Hidden button to switch chats
+        if st.button("", key=f"select_chat_{chat_id}", args=([chat_id])):
+            st.session_state['active_chat'] = chat_id
+            st.session_state['expanded_menu'] = None
+            st.experimental_rerun()
+
+    # Archive toggle
+    st.markdown("<div style='padding: 10px 15px;'>", unsafe_allow_html=True)
+    if st.button("🗄️ Show Archived Chats" if not st.session_state['archived_chats_visible'] else "🗄️ Hide Archived Chats"):
+        st.session_state['archived_chats_visible'] = not st.session_state['archived_chats_visible']
+        st.experimental_rerun()
+    st.markdown("</div>")
+
+    # Archived chats section
+    if st.session_state['archived_chats_visible']:
+        archived_chats = [
+            (chat_id, chat_data) for chat_id, chat_data in all_chats
+            if chat_data['archived'] and 
+            st.session_state['search_query'].lower() in chat_data['title'].lower()
+        ]
+        
+        if archived_chats:
+            st.markdown("<div class='section-title'>Archived Chats</div>", unsafe_allow_html=True)
+            for chat_id, chat_data in archived_chats:
+                st.markdown(f"""
+                    <div class='sidebar-chat-item'
+                         onclick="document.querySelector('[data-testid=\"baseButton-secondary-{chat_id}\"]').click()">
+                        <div class='chat-item-title'>{chat_data['title']}</div>
+                        <div class='chat-status-icon'>🗄️</div>
                     </div>
-                </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+                
+                if st.button("", key=f"select_archived_{chat_id}", args=([chat_id])):
+                    st.session_state['active_chat'] = chat_id
+                    st.session_state['expanded_menu'] = None
+                    st.experimental_rerun()
 
-            # This hidden button will actually trigger the Streamlit action
-            if st.button("select_chat_hidden", key=f"select_chat_{chat_id}", help="Switch chat", type="secondary", args=([chat_id]), use_container_width=True):
-                st.session_state['active_chat'] = chat_id
-                st.session_state['show_rename_input'] = {} # Hide rename input on switch
-                st.session_state['pre_fill_input'] = "" # Clear pre-fill on switch
-                st.experimental_rerun()
+    st.markdown("</div>")  # End sidebar-chat-list
 
-            # Using st.expander for the "..." menu (placed outside the primary chat item button)
-            # This is a bit tricky with Streamlit's rerender model, but we can make it work.
-            # The expander won't collapse automatically without a rerun, which is fine for this context menu.
-            if st.button("...", key=f"open_menu_{chat_id}", help="More options"):
-                st.session_state['expanded_menu'] = chat_id if st.session_state.get('expanded_menu') != chat_id else None # Toggle expander
-
-            if st.session_state.get('expanded_menu') == chat_id:
-                with st.container(): # Use a container to group the menu items
-                    if st.button("✏️ Rename", key=f"rename_opt_{chat_id}", use_container_width=True):
-                        st.session_state['show_rename_input'][chat_id] = True
-                        st.session_state['expanded_menu'] = None # Close menu after action
-                    if st.button("🗄️ Archive", key=f"archive_opt_{chat_id}", use_container_width=True):
-                        archive_chat(chat_id)
-                        st.session_state['expanded_menu'] = None # Close menu after action
-                    if st.button("🗑️ Delete", key=f"delete_opt_{chat_id}", use_container_width=True):
-                        delete_chat(chat_id)
-                        st.session_state['expanded_menu'] = None # Close menu after action
-
-            # Conditional rename input
-            if st.session_state['show_rename_input'].get(chat_id):
-                with st.container():
-                    new_title = st.text_input(
-                        "New title:",
-                        value=chat_data['title'],
-                        key=f"rename_input_{chat_id}",
-                        label_visibility="collapsed"
-                    )
-                    col_save, col_cancel = st.columns(2)
-                    with col_save:
-                        if st.button("Save", key=f"save_rename_{chat_id}", use_container_width=True):
-                            if new_title.strip() and new_title.strip() != chat_data['title']:
-                                rename_chat(chat_id, new_title.strip())
-                            else:
-                                st.session_state['show_rename_input'][chat_id] = False # Hide if no change or empty
-                                st.experimental_rerun()
-                    with col_cancel:
-                        if st.button("Cancel", key=f"cancel_rename_{chat_id}", use_container_width=True):
-                            st.session_state['show_rename_input'][chat_id] = False
-                            st.experimental_rerun()
-
-    st.markdown("</div>") # End sidebar-chat-list
-
-    # Sidebar Footer (User Profile/Settings)
+    # Sidebar Footer
     st.markdown("<div class='sidebar-footer'>", unsafe_allow_html=True)
     st.markdown("---")
-    st.markdown("👤 **Mark Comrade**") # Placeholder user name
-    if st.button("⬇️ Account Settings"):
-        st.info("Account settings functionality would go here!")
+    st.markdown("<div class='user-profile'>", unsafe_allow_html=True)
+    st.markdown("<div class='user-avatar'>M</div>", unsafe_allow_html=True)
+    st.markdown("<div><strong>Mark Comrade</strong><br>Free Plan</div>", unsafe_allow_html=True)
+    st.markdown("</div>")
     st.markdown("</div>")
 
 # --- Main Chat Area ---
-active_chat_data = st.session_state['chat_sessions'][st.session_state['active_chat']]
+active_chat_id = st.session_state['active_chat']
+active_chat_data = st.session_state['chat_sessions'][active_chat_id]
 
-# Main Header (for current chat title and "Get Plus")
+# Main Header
 st.markdown("<div class='main-header'>", unsafe_allow_html=True)
 st.markdown(f"<div class='chat-title-display'>{active_chat_data['title']}</div>", unsafe_allow_html=True)
-st.button("✨ Get Plus", key="get_plus_btn")
-st.markdown("</div>") # End main-header
+st.button("✨ Get Plus", key="get_plus_btn", help="Upgrade to Plus for advanced features")
+st.markdown("</div>")
 
 # Chat messages display area
 st.markdown("<div class='chat-messages-container'>", unsafe_allow_html=True)
 
 if not active_chat_data['messages']:
-    # Welcome screen when chat is empty
+    # Welcome screen
     st.markdown("<div class='welcome-screen'>", unsafe_allow_html=True)
     st.markdown("<h2>What can I help with?</h2>", unsafe_allow_html=True)
     st.markdown("<div class='suggestion-buttons'>", unsafe_allow_html=True)
-
-    # Use a lambda function with st.button to set pre_fill_input
-    if st.button("🖼️ Create image", key="suggest_image"):
-        st.session_state['pre_fill_input'] = "Generate an image of "
-        st.experimental_rerun()
-    if st.button("💡 Make a plan", key="suggest_plan"):
-        st.session_state['pre_fill_input'] = "Help me plan "
-        st.experimental_rerun()
-    if st.button("📄 Summarize text", key="suggest_summarize"):
-        st.session_state['pre_fill_input'] = "Summarize this text: "
-        st.experimental_rerun()
-    if st.button("➕ More ideas", key="suggest_more"):
-        st.session_state['pre_fill_input'] = "Suggest creative ideas for "
-        st.experimental_rerun()
+    
+    # Suggestion buttons
+    suggestions = [
+        ("🖼️ Create image", "Generate an image of "),
+        ("💡 Make a plan", "Create a plan for "),
+        ("📄 Summarize text", "Summarize this text: "),
+        ("➕ More", "Show me more options for ")
+    ]
+    
+    for icon_text, prefill in suggestions:
+        if st.button(icon_text, key=f"suggest_{icon_text}", use_container_width=True):
+            st.session_state['pre_fill_input'] = prefill
+            st.experimental_rerun()
+    
     st.markdown("</div></div>", unsafe_allow_html=True)
 else:
     # Display actual messages
@@ -557,59 +556,57 @@ else:
         else:
             st.markdown(f"<div class='message-row'><div class='bot-bubble'>{msg['content']}</div></div>", unsafe_allow_html=True)
 
-st.markdown("</div>") # End chat-messages-container
+st.markdown("</div>")  # End chat-messages-container
 
 # --- Input Area ---
 st.markdown("<div class='input-area-container'>", unsafe_allow_html=True)
+st.markdown("<div class='input-wrapper'>", unsafe_allow_html=True)
 st.markdown("<div class='input-group'>", unsafe_allow_html=True)
 
-# The core chat input form
+# Chat input form
 with st.form(key='chat_form', clear_on_submit=True):
-    # Use st.columns to place the text input and buttons side-by-side inside the form
-    col_upload, col_text_input, col_mic, col_send = st.columns([0.07, 0.78, 0.07, 0.08])
-
-    with col_upload:
-        # Image upload icon (this button is part of the form, but doesn't submit by itself)
-        st.button("🖼️", key="upload_image_btn_form", help="Upload an image (Not functional yet)",
-                  type="secondary")
-
-    with col_text_input:
-        # The main text input field
+    col1, col2, col3 = st.columns([0.1, 0.8, 0.1])
+    
+    with col1:
+        st.button("📎", key="attach_btn", help="Attach files")
+        
+    with col2:
         user_input = st.text_input(
-            "Send a message...",
-            value=st.session_state['pre_fill_input'], # Use pre_fill_input here
+            "",
+            value=st.session_state['pre_fill_input'],
+            placeholder="Message WiseBuddy...",
             key='user_input_field',
             label_visibility="collapsed"
         )
-        # Clear pre_fill_input after it's used once
         if st.session_state['pre_fill_input']:
             st.session_state['pre_fill_input'] = ""
+    
+    with col3:
+        send_button = st.form_submit_button("⬆️", use_container_width=True)
 
-    with col_mic:
-        # Microphone icon button (also part of the form)
-        st.button("🎤", key="voice_input_btn_form", help="Voice input (Not functional yet)",
-                  type="secondary")
-    with col_send:
-        # The actual form submit button
-        send_button = st.form_submit_button("⬆️", help="Send message")
-
-# Outside the form, handle logic based on form submission
+# Handle form submission
 if send_button and user_input:
     # Add user message
     active_chat_data['messages'].append({'role': 'user', 'content': user_input})
-
-    # Simulate AI response (replace with actual AI call)
-    ai_response = f"Hello from WiseBuddy! You said: **{user_input}**."
+    
+    # Auto-generate title if it's a new chat
+    if active_chat_data['title'].startswith('New Chat'):
+        active_chat_data['title'] = generate_chat_title(user_input)
+    
+    # Simulate AI response
+    responses = [
+        "I understand your question about **{}**. Here's what I can tell you...",
+        "Great question! Regarding **{}**, here's the information you need:",
+        "Based on your query about **{}**, here's a detailed response:"
+    ]
+    
+    # Extract first keyword from user input
+    keywords = re.findall(r'\b(\w{4,})\b', user_input)
+    keyword = keywords[0] if keywords else "your query"
+    
+    ai_response = random.choice(responses).format(keyword)
     active_chat_data['messages'].append({'role': 'assistant', 'content': ai_response})
+    
+    st.experimental_rerun()
 
-    # Auto-rename chat if it's "New Chat X" and has its first message
-    if active_chat_data['title'].startswith('New Chat') and len(active_chat_data['messages']) == 2:
-        truncated_message = user_input.split('\n')[0][:35]
-        if len(user_input.split('\n')[0]) > 35:
-            truncated_message += "..."
-        active_chat_data['title'] = truncated_message
-
-    st.experimental_rerun() # Rerun to display new messages
-
-st.markdown("</div>") # End input-group
-st.markdown("</div>") # End input-area-container
+st.markdown("</div></div></div>", unsafe_allow_html=True)  # Close input containers
