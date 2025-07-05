@@ -10,9 +10,9 @@ if 'chat_sessions' not in st.session_state:
     st.session_state['active_chat'] = None
     st.session_state['search_query'] = ""
     st.session_state['pre_fill_input'] = ""
-    st.session_state['tagged_chats'] = {}
     st.session_state['archived_chats_visible'] = False
     st.session_state['current_input'] = ""
+    st.session_state['sidebar_collapsed'] = False  # Track sidebar state
 
 # --- Helper Functions for Chat Management ---
 def new_chat():
@@ -21,8 +21,7 @@ def new_chat():
         'title': f'New Chat {len(st.session_state["chat_sessions"]) + 1}',
         'messages': [],
         'timestamp': datetime.datetime.now().isoformat(),
-        'archived': False,
-        'tagged': False
+        'archived': False
     }
     st.session_state['active_chat'] = chat_id
     st.session_state['pre_fill_input'] = ""
@@ -37,10 +36,10 @@ def generate_chat_title(user_input):
 # --- Streamlit Page Configuration ---
 st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="WiseBuddy Chat")
 
-# --- Enhanced CSS for ChatGPT-like Styling ---
-st.markdown("""
+# --- Enhanced CSS for Professional Styling ---
+st.markdown(f"""
 <style>
-    :root {
+    :root {{
         --sidebar-bg: #202123;
         --main-bg: #343541;
         --input-bg: #40414f;
@@ -50,37 +49,65 @@ st.markdown("""
         --accent: #10a37f;
         --user-bubble: #007bff;
         --bot-bubble: #444654;
-    }
+        --sidebar-width: {'0px' if st.session_state.sidebar_collapsed else '260px'};
+    }}
     
-    html, body, .stApp {
+    html, body, .stApp {{
         margin: 0;
         padding: 0;
         height: 100%;
         background-color: var(--main-bg);
         color: var(--text-primary);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
-    }
+        transition: all 0.3s ease;
+    }}
     
-    .stApp {
+    .stApp {{
         display: flex;
         flex-direction: row;
         height: 100vh;
-    }
+    }}
 
-    /* Sidebar Styling */
-    .stSidebar {
-        width: 260px !important;
+    /* Collapsible Sidebar Styling */
+    .stSidebar {{
+        width: var(--sidebar-width) !important;
         background-color: var(--sidebar-bg);
         padding-top: 10px;
         display: flex;
         flex-direction: column;
-    }
+        transition: width 0.3s ease;
+        overflow: hidden;
+        position: relative;
+    }}
     
-    .sidebar-header {
-        padding: 0 15px 10px 15px;
-    }
+    .sidebar-toggle {{
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: var(--main-bg);
+        border: none;
+        color: var(--text-primary);
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 100;
+    }}
     
-    .new-chat-btn {
+    .sidebar-content {{
+        width: 260px;
+        padding: 10px 15px;
+        display: {'none' if st.session_state.sidebar_collapsed else 'block'};
+    }}
+    
+    .sidebar-header {{
+        margin-bottom: 15px;
+    }}
+    
+    .new-chat-btn {{
         background-color: var(--main-bg);
         color: var(--text-primary);
         border: 1px solid var(--border-color);
@@ -91,40 +118,35 @@ st.markdown("""
         transition: background-color 0.2s ease;
         text-align: center;
         cursor: pointer;
-    }
+    }}
     
-    .new-chat-btn:hover {
+    .new-chat-btn:hover {{
         background-color: var(--border-color);
-    }
+    }}
     
-    .sidebar-search {
-        padding: 10px 15px 5px 15px;
-    }
-    
-    .sidebar-search input {
+    .sidebar-search input {{
         background-color: var(--main-bg) !important;
         color: var(--text-primary) !important;
         border: 1px solid var(--border-color) !important;
         border-radius: 5px !important;
         padding: 8px 12px !important;
         width: 100%;
-    }
+    }}
     
-    .section-title {
-        padding: 10px 15px 5px 15px;
+    .section-title {{
         color: var(--text-secondary);
         font-size: 0.85em;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-    }
+        margin: 15px 0 5px 0;
+    }}
     
-    .sidebar-chat-list {
-        flex-grow: 1;
+    .sidebar-chat-list {{
+        max-height: calc(100vh - 250px);
         overflow-y: auto;
-        padding: 0 15px;
-    }
+    }}
     
-    .sidebar-chat-item {
+    .sidebar-chat-item {{
         background-color: var(--main-bg);
         color: var(--text-primary);
         border: none;
@@ -137,44 +159,39 @@ st.markdown("""
         align-items: center;
         font-size: 0.9em;
         position: relative;
-    }
+    }}
     
-    .sidebar-chat-item:hover {
+    .sidebar-chat-item:hover {{
         background-color: var(--border-color);
-    }
+    }}
     
-    .sidebar-chat-item.active-chat {
+    .sidebar-chat-item.active-chat {{
         background-color: var(--border-color);
-    }
+    }}
     
-    .chat-item-title {
+    .chat-item-title {{
         flex-grow: 1;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         padding-right: 25px;
-    }
+    }}
     
-    .chat-status-icon {
-        position: absolute;
-        right: 10px;
-        font-size: 0.9em;
-    }
-    
-    .sidebar-footer {
-        padding: 15px;
+    .sidebar-footer {{
+        padding: 15px 0;
         border-top: 1px solid var(--border-color);
         color: var(--text-secondary);
         font-size: 0.9em;
-    }
+        margin-top: auto;
+    }}
     
-    .user-profile {
+    .user-profile {{
         display: flex;
         align-items: center;
         gap: 10px;
-    }
+    }}
     
-    .user-avatar {
+    .user-avatar {{
         width: 28px;
         height: 28px;
         border-radius: 50%;
@@ -184,10 +201,10 @@ st.markdown("""
         justify-content: center;
         color: white;
         font-weight: bold;
-    }
+    }}
     
     /* Main Content Area */
-    .main-header {
+    .main-header {{
         background-color: var(--main-bg);
         padding: 12px 20px;
         border-bottom: 1px solid var(--border-color);
@@ -197,59 +214,59 @@ st.markdown("""
         position: sticky;
         top: 0;
         z-index: 100;
-    }
+    }}
     
-    .chat-title-display {
+    .chat-title-display {{
         font-size: 1.1em;
         font-weight: 500;
-    }
+    }}
     
-    .get-plus-btn {
+    .get-plus-btn {{
         background-color: var(--accent) !important;
         color: white !important;
         border: none !important;
         padding: 8px 15px !important;
         border-radius: 20px !important;
         font-weight: bold !important;
-    }
+    }}
     
-    .chat-messages-container {
+    .chat-messages-container {{
         flex-grow: 1;
         overflow-y: auto;
         padding: 20px;
         padding-bottom: 100px;
         display: flex;
         flex-direction: column;
-    }
+    }}
     
-    .message-row {
+    .message-row {{
         display: flex;
         width: 100%;
         max-width: 800px;
         margin: 0 auto 12px auto;
-    }
+    }}
     
-    .user-bubble, .bot-bubble {
+    .user-bubble, .bot-bubble {{
         max-width: 85%;
         padding: 12px 16px;
         border-radius: 18px;
         word-wrap: break-word;
         font-size: 0.95em;
         line-height: 1.5;
-    }
+    }}
     
-    .user-bubble {
+    .user-bubble {{
         background-color: var(--user-bubble);
         margin-left: auto;
-    }
+    }}
     
-    .bot-bubble {
+    .bot-bubble {{
         background-color: var(--bot-bubble);
         margin-right: auto;
-    }
+    }}
     
     /* Welcome Screen */
-    .welcome-screen {
+    .welcome-screen {{
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -260,24 +277,24 @@ st.markdown("""
         color: var(--text-secondary);
         max-width: 700px;
         margin: 0 auto;
-    }
+    }}
     
-    .welcome-title {
+    .welcome-title {{
         font-size: 2em;
         margin-bottom: 30px;
         color: var(--text-primary);
         font-weight: 600;
-    }
+    }}
     
-    .suggestion-list {
+    .suggestion-list {{
         display: flex;
         flex-direction: column;
         gap: 15px;
         width: 100%;
         text-align: left;
-    }
+    }}
     
-    .suggestion-item {
+    .suggestion-item {{
         display: flex;
         align-items: center;
         gap: 10px;
@@ -287,73 +304,93 @@ st.markdown("""
         border-radius: 8px;
         cursor: pointer;
         transition: background-color 0.2s ease;
-    }
+    }}
     
-    .suggestion-item:hover {
+    .suggestion-item:hover {{
         background-color: var(--border-color);
-    }
+    }}
     
-    .suggestion-icon {
+    .suggestion-icon {{
         font-size: 1.2em;
-    }
+    }}
     
     /* Input Area */
-    .input-area-container {
+    .input-area-container {{
         position: fixed;
         bottom: 0;
-        left: 260px;
+        left: var(--sidebar-width);
         right: 0;
         background: var(--main-bg);
         padding: 15px 0;
         border-top: 1px solid var(--border-color);
         display: flex;
         justify-content: center;
-    }
+        transition: left 0.3s ease;
+    }}
     
-    .input-wrapper {
+    .input-wrapper {{
         width: 100%;
         max-width: 700px;
         padding: 0 20px;
-    }
+    }}
     
-    .input-group {
+    .input-group {{
         display: flex;
         align-items: center;
         background-color: var(--input-bg);
         border-radius: 25px;
         padding: 5px 15px;
-    }
+    }}
     
-    .input-group .stTextInput > div > div > input {
+    .input-group .stTextInput > div > div > input {{
         background: transparent !important;
         color: var(--text-primary) !important;
         border: none !important;
         padding: 12px 5px !important;
         font-size: 1em !important;
         box-shadow: none !important;
-    }
+        width: 100%;
+    }}
     
-    .input-group .stTextInput > div > div > input::placeholder {
+    .input-group .stTextInput > div > div > input::placeholder {{
         color: var(--text-secondary) !important;
-    }
+    }}
     
-    .input-icon-btn {
+    .input-icon-btn {{
         background: none !important;
         border: none !important;
         color: var(--text-secondary) !important;
         font-size: 1.4em !important;
         padding: 8px 10px !important;
-    }
+    }}
     
-    .send-btn {
+    .send-btn {{
         color: var(--accent) !important;
         font-size: 1.6em !important;
-    }
+    }}
     
     /* Hide Streamlit default elements */
-    #MainMenu, header, footer, .stDeployButton {
+    #MainMenu, header, footer, .stDeployButton {{
         display: none !important;
-    }
+    }}
+    
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {{
+        width: 8px;
+    }}
+    
+    ::-webkit-scrollbar-track {{
+        background: var(--main-bg);
+    }}
+    
+    ::-webkit-scrollbar-thumb {{
+        background: var(--border-color);
+        border-radius: 4px;
+    }}
+    
+    ::-webkit-scrollbar-thumb:hover {{
+        background: var(--text-secondary);
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -363,13 +400,20 @@ if not st.session_state.get('chat_sessions'):
 
 # --- Sidebar (Chat Navigation and Management) ---
 with st.sidebar:
+    # Toggle button for sidebar
+    if st.button("☰", key="sidebar_toggle", help="Toggle sidebar"):
+        st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
+        st.experimental_rerun()
+    
+    # Sidebar content container
+    st.markdown("<div class='sidebar-content'>", unsafe_allow_html=True)
+    
     # New Chat button
     st.markdown("<div class='sidebar-header'>", unsafe_allow_html=True)
     st.markdown("<div class='new-chat-btn'>+ New chat</div>", unsafe_allow_html=True)
     st.markdown("</div>")
 
     # Search functionality
-    st.markdown("<div class='sidebar-search'>", unsafe_allow_html=True)
     st.session_state['search_query'] = st.text_input(
         "",
         value=st.session_state['search_query'],
@@ -377,7 +421,6 @@ with st.sidebar:
         key="chat_search_input",
         label_visibility="collapsed"
     )
-    st.markdown("</div>")
 
     # Chats section
     st.markdown("<div class='section-title'>CHATS</div>", unsafe_allow_html=True)
@@ -400,11 +443,9 @@ with st.sidebar:
                 st.experimental_rerun()
 
     # Archive toggle
-    st.markdown("<div style='padding: 10px 0;'>", unsafe_allow_html=True)
     if st.button("🗄️ Show Archived Chats" if not st.session_state['archived_chats_visible'] else "🗄️ Hide Archived Chats"):
         st.session_state['archived_chats_visible'] = not st.session_state['archived_chats_visible']
         st.experimental_rerun()
-    st.markdown("</div>")
 
     # Archived chats section
     if st.session_state['archived_chats_visible']:
@@ -427,14 +468,16 @@ with st.sidebar:
                     st.experimental_rerun()
 
     st.markdown("</div>")  # End sidebar-chat-list
-
+    
     # Sidebar Footer
     st.markdown("<div class='sidebar-footer'>", unsafe_allow_html=True)
     st.markdown("<div class='user-profile'>", unsafe_allow_html=True)
-    st.markdown("<div class='user-avatar'>M</div>", unsafe_allow_html=True)
-    st.markdown("<div><strong>Mark Comrade</strong><br>Free Plan</div>", unsafe_allow_html=True)
+    st.markdown("<div class='user-avatar'>U</div>", unsafe_allow_html=True)
+    st.markdown("<div><strong>User Account</strong><br>Free Plan</div>", unsafe_allow_html=True)
     st.markdown("</div>")
     st.markdown("</div>")
+    
+    st.markdown("</div>")  # End sidebar-content
 
 # --- Main Chat Area ---
 active_chat_id = st.session_state['active_chat']
@@ -456,17 +499,17 @@ st.markdown("</div>")
 st.markdown("<div class='chat-messages-container'>", unsafe_allow_html=True)
 
 if not active_chat_data['messages']:
-    # Welcome screen - using list items instead of buttons
+    # Professional welcome screen
     st.markdown("<div class='welcome-screen'>", unsafe_allow_html=True)
-    st.markdown("<div class='welcome-title'>What can I help with?</div>", unsafe_allow_html=True)
+    st.markdown("<div class='welcome-title'>How can I assist you today?</div>", unsafe_allow_html=True)
     st.markdown("<div class='suggestion-list'>", unsafe_allow_html=True)
     
-    # Suggestion items as list
+    # Professional suggestions
     suggestions = [
-        ("🖼️", "Create image"),
-        ("💡", "Make a plan"),
-        ("📄", "Summarize text"),
-        ("➕", "More")
+        ("💡", "Create a strategic plan"),
+        ("📊", "Analyze business metrics"),
+        ("📝", "Draft professional documents"),
+        ("🔍", "Research industry trends")
     ]
     
     for icon, text in suggestions:
@@ -502,14 +545,9 @@ st.markdown("<div class='input-group'>", unsafe_allow_html=True)
 input_value = st.session_state.get('pre_fill_input', '') or st.session_state.get('current_input', '')
 
 # Create columns for layout
-col1, col2, col3 = st.columns([0.1, 0.8, 0.1])
+col1, col2 = st.columns([0.9, 0.1])
 
 with col1:
-    # Attachment button
-    if st.button("📎", key="attach_btn", help="Attach files"):
-        st.toast("File attachment feature coming soon!")
-
-with col2:
     # Text input field
     user_input = st.text_input(
         "",
@@ -525,9 +563,9 @@ with col2:
     if st.session_state.get('pre_fill_input'):
         st.session_state['pre_fill_input'] = ""
 
-with col3:
+with col2:
     # Send button
-    send_clicked = st.button("⬆️", key="send_btn", help="Send message")
+    send_clicked = st.button("➤", key="send_btn", help="Send message", use_container_width=True)
 
 st.markdown("</div>", unsafe_allow_html=True)  # End input-group
 st.markdown("</div>", unsafe_allow_html=True)  # End input-wrapper
@@ -544,11 +582,12 @@ if send_clicked and st.session_state['current_input'].strip():
     if active_chat_data['title'].startswith('New Chat'):
         active_chat_data['title'] = generate_chat_title(user_input)
     
-    # Simulate AI response
+    # Professional AI responses
     responses = [
-        "I understand your question about **{}**. Here's what I can tell you...",
-        "Great question! Regarding **{}**, here's the information you need:",
-        "Based on your query about **{}**, here's a detailed response:"
+        "Based on your query about **{}**, here's a professional analysis...",
+        "Regarding **{}**, I recommend the following strategic approach:",
+        "After reviewing **{}**, I've compiled these insights:",
+        "For **{}**, consider these professional recommendations:"
     ]
     
     # Extract first keyword from user input
