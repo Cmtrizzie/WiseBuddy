@@ -64,31 +64,31 @@ body { margin: 0; }
 # Active chat content
 active = st.session_state['chat_sessions'][st.session_state['active_chat']]
 st.header(active['title'])
+
 # Chat messages area
-def render_chat():
+chat_placeholder = st.empty()
+with chat_placeholder.container():
+    st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
     for msg in active['messages']:
         if msg['role'] == 'user':
             st.markdown(f"<div class='user-bubble'>{msg['content']}</div>", unsafe_allow_html=True)
         else:
             st.markdown(f"<div class='bot-bubble'>{msg['content']}</div>", unsafe_allow_html=True)
-
-chat_placeholder = st.empty()
-with chat_placeholder.container():
-    st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
-    render_chat()
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Input area
-def send_message():
-    inp = st.session_state['input']
-    if inp:
-        active['messages'].append({'role': 'user', 'content': inp})
-        # Bot echo or real response
-        active['messages'].append({'role': 'assistant', 'content': f"Echo: {inp}"})
-        st.session_state['input'] = ''
-        st.experimental_rerun()
-
+# Input area styled with markdown
 st.markdown("<div class='input-area'>", unsafe_allow_html=True)
-st.text_input("", key='input', placeholder='Ask me anything', on_change=send_message, args=(), kwargs={}, **{'class': 'input-field'})
-st.button("Send", key='send', on_click=send_message, **{'class': 'send-btn'})
+user_input = st.text_input("Ask me anything", key='input', placeholder='Ask me anything')
+send_clicked = st.button("Send")
 st.markdown("</div>", unsafe_allow_html=True)
+
+# Handle message sending
+if send_clicked or (user_input and not st.session_state.get('input_sent')):
+    if user_input.strip():
+        active['messages'].append({'role': 'user', 'content': user_input})
+        active['messages'].append({'role': 'assistant', 'content': f"Echo: {user_input}"})
+        st.session_state['input'] = ''
+        st.session_state['input_sent'] = True
+        st.experimental_rerun()
+else:
+    st.session_state['input_sent'] = False
