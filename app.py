@@ -77,4 +77,4 @@ if st.session_state['active_chat']:
         delete_chat(st.session_state['active_chat'])
         st.experimental_rerun()
 else:
-    st.write("No active chat. Please start a new chat from the sidebar.")
+    st.write("active chat. ask me anything.")
