@@ -5,7 +5,7 @@ import uuid
 # --- Initialize Session State for Multiple Chats ---
 # 'chat_sessions' stores all chat data, keyed by a unique ID
 # 'active_chat' stores the ID of the currently selected chat
-if 'chat_sessions' not not in st.session_state:
+if 'chat_sessions' not in st.session_state:
     st.session_state['chat_sessions'] = {}
     st.session_state['active_chat'] = None
 
