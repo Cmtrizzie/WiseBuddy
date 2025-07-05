@@ -1,111 +1,80 @@
-# WiseBuddy: Auto-Switch Multi-API Chatbot (Streamlit)
+import streamlit as st 
+import random 
+import requests 
+import google.generativeai as genai 
+from huggingface_hub 
+import InferenceClient
 
-import streamlit as st
-import google.generativeai as genai
-from huggingface_hub import InferenceClient
-import requests
+Load API keys from Streamlit secrets
 
-# =========================
-# API KEYS (From Streamlit Secrets)
-# =========================
-GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-DEEPINFRA_API_KEY = st.secrets["DEEPINFRA_API_KEY"]
-OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] 
+DEEPINFRA_API_KEY = st.secrets["DEEPINFRA_API_KEY"] 
+OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"] 
 HUGGINGFACE_API_KEY = st.secrets["HUGGINGFACE_API_KEY"]
 
-# =========================
-# Initialize Clients
-# =========================
+Configure Google Gemini
+
 genai.configure(api_key=GOOGLE_API_KEY)
-hf_client = InferenceClient(token=HUGGINGFACE_API_KEY, model="meta-llama/Llama-3-8B-Instruct")
 
-# =========================
-# Streamlit Page Setup
-# =========================
-st.set_page_config(page_title="WiseBuddy", layout="centered")
+Configure Hugging Face
 
-if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
+hf_client = InferenceClient(HUGGINGFACE_API_KEY)
 
-st.title("WiseBuddy Chat 🤖")
-st.write("Chat about anything—life, goals, or just venting.")
+st.set_page_config(page_title="WiseBuddy Chat", page_icon="💬") st.title("💬 WiseBuddy Chat") st.write("Chat with WiseBuddy about anything—life, goals, or just venting.")
 
-col1, col2 = st.columns([5, 1])
-with col1:
-    user_input = st.text_input("Type your message...", key="input_text", label_visibility="collapsed")
-with col2:
-    send_clicked = st.button("Send")
+Fallback advice messages
 
-# =========================
-# Auto-Switching Logic
-# =========================
-def get_response(prompt):
-    # 1. Google Gemini
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        return response.text
-    except:
-        pass
+fallback_responses = [ "🌱 Every big journey starts with a single small step.", "✨ Keep going—you’re stronger than you think.", "💡 Take one action, however small, today.", "🔥 WiseBuddy believes in you. Every setback is a setup for a comeback!" ]
 
-    # 2. DeepInfra
-    try:
-        headers = {"Authorization": f"Bearer {DEEPINFRA_API_KEY}"}
-        json_data = {"inputs": prompt, "parameters": {"max_new_tokens": 150}}
-        response = requests.post("https://api.deepinfra.com/v1/inference/meta-llama/Llama-3-8b-chat", headers=headers, json=json_data)
-        if response.ok and 'generated_text' in response.json():
-            return response.json().get('generated_text')
-    except:
-        pass
+Session state for chat history
 
-    # 3. OpenRouter
-    try:
-        headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        json_data = {
-            "model": "mistralai/mistral-7b-instruct",
-            "messages": [{"role": "user", "content": prompt}]
-        }
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=json_data)
-        if response.ok and 'choices' in response.json():
-            return response.json()['choices'][0]['message']['content']
-    except:
-        pass
+if 'messages' not in st.session_state: st.session_state['messages'] = []
 
-    # 4. Hugging Face
-    try:
-        response = hf_client.text_generation(prompt, max_new_tokens=150)
-        return response
-    except:
-        return "Sorry, all AI providers are currently unavailable. Please try again later."
+Function to get AI response or fallback
 
-# =========================
-# Handle Send Button
-# =========================
-if send_clicked and user_input:
-    prompt = f"You are WiseBuddy, a friendly AI advisor. Respond to: {user_input}"
+def get_response(prompt): # Try Google Gemini try: model = genai.GenerativeModel('gemini-1.5-flash') response = model.generate_content(prompt) return response.text except: pass
 
-    with st.spinner("WiseBuddy is thinking..."):
-        reply = get_response(prompt)
+# Try DeepInfra
+try:
+    headers = {"Authorization": f"Bearer {DEEPINFRA_API_KEY}"}
+    json_data = {"inputs": prompt, "parameters": {"max_new_tokens": 150}}
+    response = requests.post("https://api.deepinfra.com/v1/inference/meta-llama/Llama-3-8b-chat", headers=headers, json=json_data)
+    if response.ok:
+        return response.json().get('generated_text', 'No generated text.')
+except:
+    pass
 
-    st.session_state.chat_history.append(("You", user_input))
-    st.session_state.chat_history.append(("WiseBuddy", reply))
-    st.rerun()
+# Try OpenRouter
+try:
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    json_data = {
+        "model": "mistralai/mistral-7b-instruct",
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=json_data)
+    if response.ok:
+        return response.json()['choices'][0]['message']['content']
+except:
+    pass
 
-# =========================
-# Display Chat History
-# =========================
-st.markdown("""
-<div style='max-height:500px; overflow-y: auto; padding:10px; border:1px solid #ddd; border-radius:10px; background-color:#fff;'>
-""", unsafe_allow_html=True)
+# Try Hugging Face
+try:
+    response = hf_client.text_generation(prompt, max_new_tokens=150)
+    return response
+except:
+    pass
 
-for speaker, message in st.session_state.chat_history:
-    st.markdown(f"""
-    <div style='background-color:#f9f9f9; padding:10px; margin-bottom:10px; border-radius:8px;'>
-    <strong>{speaker}:</strong><br>{message}
-    </div>
-    """, unsafe_allow_html=True)
+# Fallback message
+return random.choice(fallback_responses)
 
-st.markdown("</div>", unsafe_allow_html=True)
+Input box
+
+user_input = st.chat_input("Say something...") if user_input: st.session_state.messages.append({"role": "user", "content": user_input}) reply = get_response(user_input) st.session_state.messages.append({"role": "assistant", "content": reply})
+
+Display chat history
+
+for message in st.session_state.messages: with st.chat_message(message["role"]): st.markdown(message["content"])
+
