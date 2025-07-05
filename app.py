@@ -14,6 +14,7 @@ if 'chat_sessions' not in st.session_state:
     st.session_state['expanded_menu'] = None
     st.session_state['tagged_chats'] = {}  # For comrade tagging
     st.session_state['archived_chats_visible'] = False  # Archive visibility toggle
+    st.session_state['current_input'] = ""  # To track input field state
 
 # --- Helper Functions for Chat Management ---
 def new_chat():
@@ -29,6 +30,7 @@ def new_chat():
     st.session_state['show_rename_input'] = {}
     st.session_state['pre_fill_input'] = ""
     st.session_state['expanded_menu'] = None
+    st.session_state['current_input'] = ""  # Clear input field
 
 def rename_chat(chat_id, new_title):
     if chat_id in st.session_state['chat_sessions']:
@@ -471,6 +473,7 @@ with st.sidebar:
         if st.button("", key=f"select_chat_{chat_id}", args=([chat_id])):
             st.session_state['active_chat'] = chat_id
             st.session_state['expanded_menu'] = None
+            st.session_state['current_input'] = ""  # Clear input on chat switch
             st.experimental_rerun()
 
     # Archive toggle
@@ -502,6 +505,7 @@ with st.sidebar:
                 if st.button("", key=f"select_archived_{chat_id}", args=([chat_id])):
                     st.session_state['active_chat'] = chat_id
                     st.session_state['expanded_menu'] = None
+                    st.session_state['current_input'] = ""  # Clear input on chat switch
                     st.experimental_rerun()
 
     st.markdown("</div>")  # End sidebar-chat-list
@@ -563,29 +567,45 @@ st.markdown("<div class='input-area-container'>", unsafe_allow_html=True)
 st.markdown("<div class='input-wrapper'>", unsafe_allow_html=True)
 st.markdown("<div class='input-group'>", unsafe_allow_html=True)
 
-# Chat input form
-with st.form(key='chat_form', clear_on_submit=True):
-    col1, col2, col3 = st.columns([0.1, 0.8, 0.1])
-    
-    with col1:
-        st.button("📎", key="attach_btn", help="Attach files")
-        
-    with col2:
-        user_input = st.text_input(
-            "",
-            value=st.session_state['pre_fill_input'],
-            placeholder="Message WiseBuddy...",
-            key='user_input_field',
-            label_visibility="collapsed"
-        )
-        if st.session_state['pre_fill_input']:
-            st.session_state['pre_fill_input'] = ""
-    
-    with col3:
-        send_button = st.form_submit_button("⬆️", use_container_width=True)
+# Initialize input value
+input_value = st.session_state.get('pre_fill_input', '') or st.session_state.get('current_input', '')
 
-# Handle form submission
-if send_button and user_input:
+# Create columns for layout
+col1, col2, col3 = st.columns([0.1, 0.8, 0.1])
+
+with col1:
+    # Attachment button
+    if st.button("📎", key="attach_btn", help="Attach files"):
+        st.toast("File attachment feature coming soon!")
+
+with col2:
+    # Text input field
+    user_input = st.text_input(
+        "",
+        value=input_value,
+        placeholder="Message WiseBuddy...",
+        key='user_input_field',
+        label_visibility="collapsed"
+    )
+    # Update current input state
+    st.session_state['current_input'] = user_input
+    
+    # Clear pre-fill after use
+    if st.session_state.get('pre_fill_input'):
+        st.session_state['pre_fill_input'] = ""
+
+with col3:
+    # Send button
+    send_clicked = st.button("⬆️", key="send_btn", help="Send message")
+
+st.markdown("</div>", unsafe_allow_html=True)  # End input-group
+st.markdown("</div>", unsafe_allow_html=True)  # End input-wrapper
+st.markdown("</div>", unsafe_allow_html=True)  # End input-area-container
+
+# Handle message submission
+if send_clicked and st.session_state['current_input'].strip():
+    user_input = st.session_state['current_input'].strip()
+    
     # Add user message
     active_chat_data['messages'].append({'role': 'user', 'content': user_input})
     
@@ -607,6 +627,8 @@ if send_button and user_input:
     ai_response = random.choice(responses).format(keyword)
     active_chat_data['messages'].append({'role': 'assistant', 'content': ai_response})
     
+    # Clear input after submission
+    st.session_state['current_input'] = ""
+    st.session_state['pre_fill_input'] = ""
+    
     st.experimental_rerun()
-
-st.markdown("</div></div></div>", unsafe_allow_html=True)  # Close input containers
