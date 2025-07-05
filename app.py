@@ -34,7 +34,7 @@ def generate_chat_title(user_input):
     return ' '.join(words) + ("..." if len(first_sentence) > 15 else "")
 
 # --- Streamlit Page Configuration ---
-st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="WiseBuddy Chat")
+st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Professional Assistant")
 
 # --- Enhanced CSS for Professional Styling ---
 st.markdown(f"""
@@ -68,7 +68,7 @@ st.markdown(f"""
         height: 100vh;
     }}
 
-    /* Collapsible Sidebar Styling */
+    /* Slidebar Styling */
     .stSidebar {{
         width: var(--sidebar-width) !important;
         background-color: var(--sidebar-bg);
@@ -78,12 +78,14 @@ st.markdown(f"""
         transition: width 0.3s ease;
         overflow: hidden;
         position: relative;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+        z-index: 100;
     }}
     
     .sidebar-toggle {{
         position: absolute;
-        top: 10px;
-        right: 10px;
+        top: 12px;
+        right: 12px;
         background: var(--main-bg);
         border: none;
         color: var(--text-primary);
@@ -95,16 +97,20 @@ st.markdown(f"""
         justify-content: center;
         cursor: pointer;
         z-index: 100;
+        font-size: 1.2em;
     }}
     
     .sidebar-content {{
         width: 260px;
         padding: 10px 15px;
         display: {'none' if st.session_state.sidebar_collapsed else 'block'};
+        opacity: {'0' if st.session_state.sidebar_collapsed else '1'};
+        transition: opacity 0.3s ease;
     }}
     
     .sidebar-header {{
         margin-bottom: 15px;
+        padding-top: 15px;
     }}
     
     .new-chat-btn {{
@@ -114,14 +120,15 @@ st.markdown(f"""
         width: 100%;
         padding: 10px 15px;
         border-radius: 5px;
-        font-weight: normal;
-        transition: background-color 0.2s ease;
+        font-weight: 500;
+        transition: all 0.2s ease;
         text-align: center;
         cursor: pointer;
     }}
     
     .new-chat-btn:hover {{
         background-color: var(--border-color);
+        transform: translateY(-1px);
     }}
     
     .sidebar-search input {{
@@ -131,6 +138,7 @@ st.markdown(f"""
         border-radius: 5px !important;
         padding: 8px 12px !important;
         width: 100%;
+        font-size: 0.9em;
     }}
     
     .section-title {{
@@ -138,23 +146,24 @@ st.markdown(f"""
         font-size: 0.85em;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin: 15px 0 5px 0;
+        margin: 20px 0 10px 0;
     }}
     
     .sidebar-chat-list {{
         max-height: calc(100vh - 250px);
         overflow-y: auto;
+        padding-right: 5px;
     }}
     
     .sidebar-chat-item {{
         background-color: var(--main-bg);
         color: var(--text-primary);
         border: none;
-        padding: 8px 12px;
-        margin-bottom: 4px;
-        border-radius: 5px;
+        padding: 10px 12px;
+        margin-bottom: 6px;
+        border-radius: 6px;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: all 0.2s ease;
         display: flex;
         align-items: center;
         font-size: 0.9em;
@@ -163,10 +172,12 @@ st.markdown(f"""
     
     .sidebar-chat-item:hover {{
         background-color: var(--border-color);
+        transform: translateX(2px);
     }}
     
     .sidebar-chat-item.active-chat {{
         background-color: var(--border-color);
+        border-left: 3px solid var(--accent);
     }}
     
     .chat-item-title {{
@@ -192,8 +203,8 @@ st.markdown(f"""
     }}
     
     .user-avatar {{
-        width: 28px;
-        height: 28px;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
         background-color: var(--accent);
         display: flex;
@@ -206,18 +217,18 @@ st.markdown(f"""
     /* Main Content Area */
     .main-header {{
         background-color: var(--main-bg);
-        padding: 12px 20px;
+        padding: 15px 25px;
         border-bottom: 1px solid var(--border-color);
         display: flex;
         justify-content: space-between;
         align-items: center;
         position: sticky;
         top: 0;
-        z-index: 100;
+        z-index: 50;
     }}
     
     .chat-title-display {{
-        font-size: 1.1em;
+        font-size: 1.2em;
         font-weight: 500;
     }}
     
@@ -225,16 +236,21 @@ st.markdown(f"""
         background-color: var(--accent) !important;
         color: white !important;
         border: none !important;
-        padding: 8px 15px !important;
+        padding: 8px 20px !important;
         border-radius: 20px !important;
-        font-weight: bold !important;
+        font-weight: 500 !important;
+        transition: background-color 0.2s ease !important;
+    }}
+    
+    .get-plus-btn:hover {{
+        background-color: #0d8a6e !important;
     }}
     
     .chat-messages-container {{
         flex-grow: 1;
         overflow-y: auto;
-        padding: 20px;
-        padding-bottom: 100px;
+        padding: 25px;
+        padding-bottom: 120px;
         display: flex;
         flex-direction: column;
     }}
@@ -243,26 +259,29 @@ st.markdown(f"""
         display: flex;
         width: 100%;
         max-width: 800px;
-        margin: 0 auto 12px auto;
+        margin: 0 auto 15px auto;
     }}
     
     .user-bubble, .bot-bubble {{
         max-width: 85%;
-        padding: 12px 16px;
+        padding: 15px 20px;
         border-radius: 18px;
         word-wrap: break-word;
-        font-size: 0.95em;
-        line-height: 1.5;
+        font-size: 1em;
+        line-height: 1.6;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }}
     
     .user-bubble {{
         background-color: var(--user-bubble);
         margin-left: auto;
+        border-bottom-right-radius: 5px;
     }}
     
     .bot-bubble {{
         background-color: var(--bot-bubble);
         margin-right: auto;
+        border-bottom-left-radius: 5px;
     }}
     
     /* Welcome Screen */
@@ -275,21 +294,24 @@ st.markdown(f"""
         padding: 20px;
         text-align: center;
         color: var(--text-secondary);
-        max-width: 700px;
+        max-width: 800px;
         margin: 0 auto;
     }}
     
     .welcome-title {{
-        font-size: 2em;
-        margin-bottom: 30px;
+        font-size: 2.2em;
+        margin-bottom: 40px;
         color: var(--text-primary);
         font-weight: 600;
+        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }}
     
     .suggestion-list {{
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
         width: 100%;
         text-align: left;
     }}
@@ -297,21 +319,35 @@ st.markdown(f"""
     .suggestion-item {{
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 12px 15px;
-        background-color: var(--bot-bubble);
+        gap: 15px;
+        padding: 18px 20px;
+        background-color: rgba(64, 65, 79, 0.5);
         border: 1px solid var(--border-color);
-        border-radius: 8px;
+        border-radius: 12px;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: all 0.2s ease;
     }}
     
     .suggestion-item:hover {{
-        background-color: var(--border-color);
+        background-color: rgba(68, 70, 84, 0.8);
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }}
     
     .suggestion-icon {{
-        font-size: 1.2em;
+        font-size: 1.8em;
+        background: rgba(16, 163, 127, 0.15);
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }}
+    
+    .suggestion-text {{
+        font-size: 1.1em;
+        font-weight: 500;
     }}
     
     /* Input Area */
@@ -321,17 +357,18 @@ st.markdown(f"""
         left: var(--sidebar-width);
         right: 0;
         background: var(--main-bg);
-        padding: 15px 0;
+        padding: 20px 0;
         border-top: 1px solid var(--border-color);
         display: flex;
         justify-content: center;
         transition: left 0.3s ease;
+        z-index: 40;
     }}
     
     .input-wrapper {{
         width: 100%;
-        max-width: 700px;
-        padding: 0 20px;
+        max-width: 800px;
+        padding: 0 25px;
     }}
     
     .input-group {{
@@ -339,15 +376,16 @@ st.markdown(f"""
         align-items: center;
         background-color: var(--input-bg);
         border-radius: 25px;
-        padding: 5px 15px;
+        padding: 8px 20px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }}
     
     .input-group .stTextInput > div > div > input {{
         background: transparent !important;
         color: var(--text-primary) !important;
         border: none !important;
-        padding: 12px 5px !important;
-        font-size: 1em !important;
+        padding: 14px 10px !important;
+        font-size: 1.05em !important;
         box-shadow: none !important;
         width: 100%;
     }}
@@ -356,17 +394,18 @@ st.markdown(f"""
         color: var(--text-secondary) !important;
     }}
     
-    .input-icon-btn {{
-        background: none !important;
+    .send-btn {{
+        background: var(--accent) !important;
+        color: white !important;
         border: none !important;
-        color: var(--text-secondary) !important;
-        font-size: 1.4em !important;
-        padding: 8px 10px !important;
+        padding: 10px 20px !important;
+        border-radius: 20px !important;
+        font-weight: 500 !important;
+        transition: background-color 0.2s ease !important;
     }}
     
-    .send-btn {{
-        color: var(--accent) !important;
-        font-size: 1.6em !important;
+    .send-btn:hover {{
+        background: #0d8a6e !important;
     }}
     
     /* Hide Streamlit default elements */
@@ -398,19 +437,22 @@ st.markdown(f"""
 if not st.session_state.get('chat_sessions'):
     new_chat()
 
-# --- Sidebar (Chat Navigation and Management) ---
+# --- Slidebar (Collapsible Side Navigation) ---
 with st.sidebar:
-    # Toggle button for sidebar
-    if st.button("☰", key="sidebar_toggle", help="Toggle sidebar"):
+    # Toggle button for slidebar
+    toggle_icon = "❮" if not st.session_state.sidebar_collapsed else "❯"
+    if st.button(toggle_icon, key="sidebar_toggle", help="Toggle sidebar"):
         st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
         st.experimental_rerun()
     
-    # Sidebar content container
+    # Slidebar content container
     st.markdown("<div class='sidebar-content'>", unsafe_allow_html=True)
     
     # New Chat button
     st.markdown("<div class='sidebar-header'>", unsafe_allow_html=True)
-    st.markdown("<div class='new-chat-btn'>+ New chat</div>", unsafe_allow_html=True)
+    if st.button("+ New Chat", key="new_chat_btn", use_container_width=True):
+        new_chat()
+        st.experimental_rerun()
     st.markdown("</div>")
 
     # Search functionality
@@ -430,20 +472,18 @@ with st.sidebar:
     for chat_id, chat_data in st.session_state['chat_sessions'].items():
         if not chat_data['archived']:
             is_active = (chat_id == st.session_state['active_chat'])
-            st.markdown(f"""
-                <div class='sidebar-chat-item {"active-chat" if is_active else ""}'>
-                    <div class='chat-item-title'>{chat_data['title']}</div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            # Hidden button to switch chats
-            if st.button("", key=f"select_chat_{chat_id}"):
+            if st.button(
+                chat_data['title'], 
+                key=f"chat_{chat_id}",
+                use_container_width=True
+            ):
                 st.session_state['active_chat'] = chat_id
                 st.session_state['current_input'] = ""
                 st.experimental_rerun()
 
     # Archive toggle
-    if st.button("🗄️ Show Archived Chats" if not st.session_state['archived_chats_visible'] else "🗄️ Hide Archived Chats"):
+    if st.button("🗄️ Show Archived Chats" if not st.session_state['archived_chats_visible'] else "🗄️ Hide Archived Chats", 
+                 key="archive_toggle", use_container_width=True):
         st.session_state['archived_chats_visible'] = not st.session_state['archived_chats_visible']
         st.experimental_rerun()
 
@@ -456,24 +496,18 @@ with st.sidebar:
                     st.markdown("<div class='section-title'>ARCHIVED CHATS</div>", unsafe_allow_html=True)
                     archived_exists = True
                 
-                st.markdown(f"""
-                    <div class='sidebar-chat-item'>
-                        <div class='chat-item-title'>{chat_data['title']}</div>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                if st.button("", key=f"select_archived_{chat_id}"):
+                if st.button(chat_data['title'], key=f"archived_{chat_id}", use_container_width=True):
                     st.session_state['active_chat'] = chat_id
                     st.session_state['current_input'] = ""
                     st.experimental_rerun()
 
     st.markdown("</div>")  # End sidebar-chat-list
     
-    # Sidebar Footer
+    # Slidebar Footer
     st.markdown("<div class='sidebar-footer'>", unsafe_allow_html=True)
     st.markdown("<div class='user-profile'>", unsafe_allow_html=True)
     st.markdown("<div class='user-avatar'>U</div>", unsafe_allow_html=True)
-    st.markdown("<div><strong>User Account</strong><br>Free Plan</div>", unsafe_allow_html=True)
+    st.markdown("<div><strong>Professional Account</strong><br>Business Plan</div>", unsafe_allow_html=True)
     st.markdown("</div>")
     st.markdown("</div>")
     
@@ -492,7 +526,7 @@ else:
 # Main Header
 st.markdown("<div class='main-header'>", unsafe_allow_html=True)
 st.markdown(f"<div class='chat-title-display'>{active_chat_data['title']}</div>", unsafe_allow_html=True)
-st.button("✨ Get Plus", key="get_plus_btn", help="Upgrade to Plus for advanced features")
+st.button("✨ Upgrade to Pro", key="get_plus_btn", help="Get advanced features")
 st.markdown("</div>")
 
 # Chat messages display area
@@ -513,17 +547,17 @@ if not active_chat_data['messages']:
     ]
     
     for icon, text in suggestions:
-        st.markdown(f"""
-            <div class='suggestion-item' onclick='document.querySelector("[key=\\'suggest_{text.replace(" ", "_")}\\']").click()'>
-                <div class='suggestion-icon'>{icon}</div>
-                <div>{text}</div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # Hidden button for each suggestion
-        if st.button(f"suggest_{text}", key=f"suggest_{text.replace(' ', '_')}", visible=False):
-            st.session_state['pre_fill_input'] = f"{text}: "
-            st.experimental_rerun()
+        # Use columns for better layout
+        col1, col2 = st.columns([1, 1])
+        with col1 if icon == "💡" or icon == "📊" else col2:
+            if st.button(
+                f"**{text}**", 
+                key=f"suggest_{text.replace(' ', '_')}",
+                use_container_width=True,
+                help=f"Start: {text}"
+            ):
+                st.session_state['pre_fill_input'] = f"{text}: "
+                st.experimental_rerun()
     
     st.markdown("</div></div>", unsafe_allow_html=True)
 else:
@@ -539,20 +573,19 @@ st.markdown("</div>")  # End chat-messages-container
 # --- Input Area ---
 st.markdown("<div class='input-area-container'>", unsafe_allow_html=True)
 st.markdown("<div class='input-wrapper'>", unsafe_allow_html=True)
-st.markdown("<div class='input-group'>", unsafe_allow_html=True)
 
 # Initialize input value
 input_value = st.session_state.get('pre_fill_input', '') or st.session_state.get('current_input', '')
 
 # Create columns for layout
-col1, col2 = st.columns([0.9, 0.1])
+input_col, send_col = st.columns([0.9, 0.1])
 
-with col1:
+with input_col:
     # Text input field
     user_input = st.text_input(
         "",
         value=input_value,
-        placeholder="Message WiseBuddy...",
+        placeholder="Message your professional assistant...",
         key='user_input_field',
         label_visibility="collapsed"
     )
@@ -563,11 +596,10 @@ with col1:
     if st.session_state.get('pre_fill_input'):
         st.session_state['pre_fill_input'] = ""
 
-with col2:
+with send_col:
     # Send button
-    send_clicked = st.button("➤", key="send_btn", help="Send message", use_container_width=True)
+    send_clicked = st.button("Send", key="send_btn", help="Send message", use_container_width=True)
 
-st.markdown("</div>", unsafe_allow_html=True)  # End input-group
 st.markdown("</div>", unsafe_allow_html=True)  # End input-wrapper
 st.markdown("</div>", unsafe_allow_html=True)  # End input-area-container
 
