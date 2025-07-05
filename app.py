@@ -37,6 +37,10 @@ for chat_id, chat in st.session_state['chat_sessions'].items():
 if st.sidebar.button("➕ New Chat"):
     new_chat()
 
+# Ensure there's always an active chat
+if not st.session_state['active_chat'] and st.session_state['chat_sessions']:
+    st.session_state['active_chat'] = next(iter(st.session_state['chat_sessions']))
+
 # Active chat area
 if st.session_state['active_chat']:
     active_chat = st.session_state['chat_sessions'][st.session_state['active_chat']]
@@ -47,20 +51,20 @@ if st.session_state['active_chat']:
         role = "You" if msg['role'] == 'user' else "WiseBuddy"
         st.markdown(f"**{role}:** {msg['content']}")
 
-    # Input and send button inside text_input container
-    col1, col2 = st.columns([9, 1])
-    with col1:
-        user_input = st.text_input("", key='chat_input', placeholder="Type your message and press Enter...")
-    with col2:
-        if st.button("➡️", key='send_button'):
-            if user_input:
-                active_chat['messages'].append({'role': 'user', 'content': user_input})
-                bot_reply = f"Echo: {user_input}"
-                active_chat['messages'].append({'role': 'assistant', 'content': bot_reply})
-                if len([m for m in active_chat['messages'] if m['role'] == 'user']) == 3:
-                    rename_chat(st.session_state['active_chat'], user_input[:20] + '...')
-                st.session_state['chat_input'] = ''
-                st.experimental_rerun()
+    # Input with send button inside
+    cols = st.columns([6, 1])
+    user_input = cols[0].text_input("", placeholder="Ask me anything...", key='chat_input', label_visibility='collapsed')
+    send_clicked = cols[1].button("Send")
+
+    if send_clicked and user_input:
+        active_chat['messages'].append({'role': 'user', 'content': user_input})
+        # Simple bot reply
+        bot_reply = f"Echo: {user_input}"
+        active_chat['messages'].append({'role': 'assistant', 'content': bot_reply})
+        # Auto rename after 3 messages
+        if len([m for m in active_chat['messages'] if m['role'] == 'user']) == 3:
+            rename_chat(st.session_state['active_chat'], user_input[:20] + '...')
+        st.experimental_rerun()
 
     # Rename & delete controls
     if st.sidebar.button("✏️ Rename Chat", key=f'rename_{st.session_state["active_chat"]}'):
@@ -72,14 +76,5 @@ if st.session_state['active_chat']:
     if st.sidebar.button("🗑️ Delete Chat", key=f'delete_{st.session_state["active_chat"]}'):
         delete_chat(st.session_state['active_chat'])
         st.experimental_rerun()
-
 else:
-    st.title("Welcome to WiseBuddy 🤖")
-    st.write("Your personal thinking partner. Start a new chat to begin.")
-
-    # Input and send button always visible
-    col1, col2 = st.columns([9, 1])
-    with col1:
-        placeholder_input = st.text_input("", key='welcome_input', placeholder="Type here and press Enter...")
-    with col2:
-        st.button("➡️", key='welcome_send')
+    st.write("No active chat. Please start a new chat from the sidebar.")
