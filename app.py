@@ -18,63 +18,77 @@ def new_chat():
 
 # Function to delete a chat
 def delete_chat(chat_id):
-    if chat_id in st.session_state['chat_sessions']:
-        del st.session_state['chat_sessions'][chat_id]
-        if st.session_state['active_chat'] == chat_id:
-            st.session_state['active_chat'] = next(iter(st.session_state['chat_sessions']), None)
+    st.session_state['chat_sessions'].pop(chat_id, None)
+    if st.session_state['active_chat'] == chat_id:
+        st.session_state['active_chat'] = next(iter(st.session_state['chat_sessions']), None)
 
 # Function to rename a chat
 def rename_chat(chat_id, new_title):
-    if chat_id in st.session_state['chat_sessions']:
-        st.session_state['chat_sessions'][chat_id]['title'] = new_title
+    st.session_state['chat_sessions'][chat_id]['title'] = new_title
 
-# Ensure there's always an active chat when the app loads
-if not st.session_state['chat_sessions']:
-    new_chat()
+# Ensure there's always an active chat
+def ensure_chat():
+    if not st.session_state['chat_sessions']:
+        new_chat()
+    if not st.session_state['active_chat']:
+        st.session_state['active_chat'] = next(iter(st.session_state['chat_sessions']))
+
+ensure_chat()
 
 # Sidebar for chat selection
-st.sidebar.title("💬 Chats")
+st.sidebar.title("Chats")
 for chat_id, chat in st.session_state['chat_sessions'].items():
+    selected = chat_id == st.session_state['active_chat']
     if st.sidebar.button(chat['title'], key=chat_id):
         st.session_state['active_chat'] = chat_id
-
-if st.sidebar.button("➕ New Chat"):
+st.sidebar.divider()
+if st.sidebar.button("+ New Chat"):
     new_chat()
+    st.experimental_rerun()
 
-# Active chat area
-if st.session_state['active_chat']:
-    active_chat = st.session_state['chat_sessions'][st.session_state['active_chat']]
-    st.title(active_chat['title'])
+# Main layout CSS to mimic ChatGPT
+st.markdown("""
+<style>
+body { margin: 0; }
+.main { padding: 0; }
+.chat-container { display: flex; flex-direction: column; height: 80vh; overflow-y: auto; padding: 10px; }
+.user-bubble, .bot-bubble { max-width: 70%; padding: 10px 15px; margin: 5px 0; border-radius: 12px; word-wrap: break-word; }
+.user-bubble { background-color: #dcf8c6; align-self: flex-end; }
+.bot-bubble { background-color: #f1f0f0; align-self: flex-start; }
+.input-area { position: fixed; bottom: 0; left: 200px; right: 0; background: #fff; padding: 10px; display: flex; align-items: center; border-top: 1px solid #ddd; }
+.input-field { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ccc; margin-right: 10px; }
+.send-btn { background-color: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 20px; cursor: pointer; }
+</style>
+""", unsafe_allow_html=True)
 
-    # Display messages
-    for msg in active_chat['messages']:
-        role = "You" if msg['role'] == 'user' else "WiseBuddy"
-        st.markdown(f"**{role}:** {msg['content']}")
+# Active chat content
+active = st.session_state['chat_sessions'][st.session_state['active_chat']]
+st.header(active['title'])
+# Chat messages area
+def render_chat():
+    for msg in active['messages']:
+        if msg['role'] == 'user':
+            st.markdown(f"<div class='user-bubble'>{msg['content']}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div class='bot-bubble'>{msg['content']}</div>", unsafe_allow_html=True)
 
-    # Input box with send button inside
-    col1, col2 = st.columns([5, 1])
-    with col1:
-        user_input = st.text_input("", placeholder="Ask me anything", key='chat_input', label_visibility="collapsed")
-    with col2:
-        send_clicked = st.button("Send")
+chat_placeholder = st.empty()
+with chat_placeholder.container():
+    st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
+    render_chat()
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    if send_clicked and user_input:
-        active_chat['messages'].append({'role': 'user', 'content': user_input})
-        # Simple bot reply
-        bot_reply = f"Echo: {user_input}"
-        active_chat['messages'].append({'role': 'assistant', 'content': bot_reply})
-        # Auto rename after 3 messages
-        if len([m for m in active_chat['messages'] if m['role'] == 'user']) == 3:
-            rename_chat(st.session_state['active_chat'], user_input[:20] + '...')
+# Input area
+def send_message():
+    inp = st.session_state['input']
+    if inp:
+        active['messages'].append({'role': 'user', 'content': inp})
+        # Bot echo or real response
+        active['messages'].append({'role': 'assistant', 'content': f"Echo: {inp}"})
+        st.session_state['input'] = ''
         st.experimental_rerun()
 
-    # Rename & delete controls
-    if st.sidebar.button("✏️ Rename Chat", key=f'rename_{st.session_state["active_chat"]}'):
-        new_title = st.text_input("Enter new chat name:", key='rename_input')
-        if new_title:
-            rename_chat(st.session_state['active_chat'], new_title)
-            st.experimental_rerun()
-
-    if st.sidebar.button("🗑️ Delete Chat", key=f'delete_{st.session_state["active_chat"]}'):
-        delete_chat(st.session_state['active_chat'])
-        st.experimental_rerun()
+st.markdown("<div class='input-area'>", unsafe_allow_html=True)
+st.text_input("", key='input', placeholder='Ask me anything', on_change=send_message, args=(), kwargs={}, **{'class': 'input-field'})
+st.button("Send", key='send', on_click=send_message, **{'class': 'send-btn'})
+st.markdown("</div>", unsafe_allow_html=True)
