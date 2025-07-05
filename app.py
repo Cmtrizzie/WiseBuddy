@@ -19,35 +19,28 @@ hf_client = InferenceClient(HUGGINGFACE_API_KEY)
 # Set page config
 st.set_page_config(page_title="WiseBuddy Chat", page_icon="💬", layout="wide")
 
-# Dark mode toggle
 if 'dark_mode' not in st.session_state:
     st.session_state['dark_mode'] = False
 
 st.sidebar.title("🌙 Settings")
 st.session_state['dark_mode'] = st.sidebar.toggle("Enable Dark Mode", value=st.session_state['dark_mode'])
 
-# Chat history tab
 st.sidebar.title("📜 Chat History")
-if 'messages' in st.session_state and st.session_state['messages']:
+if 'messages' not in st.session_state:
+    st.session_state['messages'] = []
+
+if st.session_state['messages']:
     for i, msg in enumerate(st.session_state['messages']):
         role = "You" if msg['role'] == 'user' else "WiseBuddy"
         st.sidebar.markdown(f"**{role}:** {msg['content'][:50]}...")
 else:
     st.sidebar.write("No chat history yet.")
 
-# Apply dark or light theme
-if st.session_state['dark_mode']:
-    background_color = "#1e1e1e"
-    text_color = "#e0e0e0"
-    user_bubble_color = "#3c3c3c"
-    bot_bubble_color = "#2a2a2a"
-else:
-    background_color = "#ffffff"
-    text_color = "#000000"
-    user_bubble_color = "#d1e7dd"
-    bot_bubble_color = "#fff3cd"
+background_color = "#1e1e1e" if st.session_state['dark_mode'] else "#ffffff"
+text_color = "#e0e0e0" if st.session_state['dark_mode'] else "#000000"
+user_bubble_color = "#3c3c3c" if st.session_state['dark_mode'] else "#d1e7dd"
+bot_bubble_color = "#2a2a2a" if st.session_state['dark_mode'] else "#fff3cd"
 
-# Custom CSS + JavaScript for Speech-to-Text
 st.markdown(f"""
     <style>
     .main {{
@@ -69,20 +62,26 @@ st.markdown(f"""
         background-color: {bot_bubble_color};
         color: {text_color};
     }}
-    </style>
-
-    <script>
-    var recognition;
-    function startDictation() {{
-        recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'en-US';
-        recognition.onresult = function(event) {{
-            var transcript = event.results[0][0].transcript;
-            document.getElementById('chat_input').value = transcript;
-        }};
-        recognition.start();
+    .chat-input-container {{
+        display: flex;
+        align-items: center;
+        width: 100%;
+        margin-top: 10px;
     }}
-    </script>
+    .chat-input-field {{
+        flex: 1;
+        padding: 10px;
+        border-radius: 5px;
+        border: none;
+        margin-right: 5px;
+    }}
+    .chat-button {{
+        padding: 10px 15px;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+    }}
+    </style>
 """, unsafe_allow_html=True)
 
 st.title("💬 WiseBuddy Chat")
@@ -94,9 +93,6 @@ fallback_responses = [
     "💡 Take one action, however small, today.",
     "🔥 WiseBuddy believes in you. Every setback is a setup for a comeback!"
 ]
-
-if 'messages' not in st.session_state:
-    st.session_state['messages'] = []
 
 # AI response function
 def get_response(prompt):
@@ -139,20 +135,14 @@ def get_response(prompt):
 
     return random.choice(fallback_responses)
 
-# Input field with speech button
-st.markdown('''<input type="text" id="chat_input" name="chat_input" placeholder="Type or click mic..." style="width:80%; padding:8px; border-radius:5px;"/>
-<button onclick="startDictation()">🎤</button>
-''', unsafe_allow_html=True)
-
-user_input = st.chat_input("Or type here and press Enter...")
+user_input = st.chat_input("Type a message or click mic 🎤")
 if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
+    st.session_state['messages'].append({"role": "user", "content": user_input})
     reply = get_response(user_input)
-    st.session_state.messages.append({"role": "assistant", "content": reply})
+    st.session_state['messages'].append({"role": "assistant", "content": reply})
 
 st.markdown("<script>window.scrollTo(0,document.body.scrollHeight);</script>", unsafe_allow_html=True)
 
-for message in st.session_state.messages:
+for message in st.session_state['messages']:
     role_class = "user-bubble" if message["role"] == "user" else "bot-bubble"
     st.markdown(f'<div class="chat-bubble {role_class}">{message["content"]}</div>', unsafe_allow_html=True)
-
