@@ -29,7 +29,8 @@ def new_chat():
     Resets pre-fill and current input for the new chat.
     """
     chat_id = str(uuid.uuid4())
-    st.session_session_state['chat_sessions'][chat_id] = {
+    # CORRECTED: Changed 'st.session_session_state' to 'st.session_state'
+    st.session_state['chat_sessions'][chat_id] = {
         'title': f'New Chat {len(st.session_state["chat_sessions"]) + 1}',
         'messages': [],
         'timestamp': datetime.datetime.now().isoformat(),
