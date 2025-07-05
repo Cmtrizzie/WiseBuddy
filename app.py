@@ -1,7 +1,7 @@
 import streamlit as st
 import random
 import uuid
-import datetime # For potential timestamping later
+import datetime
 
 # --- Initialize Session State for Multiple Chats ---
 if 'chat_sessions' not in st.session_state:
@@ -9,6 +9,9 @@ if 'chat_sessions' not in st.session_state:
     st.session_state['active_chat'] = None
     st.session_state['search_query'] = "" # For sidebar search
     st.session_state['show_rename_input'] = {} # To control rename input visibility
+    # This will be used to pre-fill the input field from suggestion buttons
+    if 'pre_fill_input' not in st.session_state:
+        st.session_state['pre_fill_input'] = ""
 
 # --- Helper Functions for Chat Management ---
 
@@ -23,6 +26,7 @@ def new_chat():
     }
     st.session_state['active_chat'] = chat_id
     st.session_state['show_rename_input'] = {} # Reset rename input visibility
+    st.session_state['pre_fill_input'] = "" # Clear pre-fill on new chat
 
 def rename_chat(chat_id, new_title):
     """Renames a chat session."""
@@ -73,7 +77,6 @@ def ensure_chat_exists():
 st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="WiseBuddy Chat")
 
 # --- Custom CSS for ChatGPT-like Styling ---
-# We'll use a lot of CSS to override Streamlit's defaults and achieve the desired look
 st.markdown("""
 <style>
     /* General layout adjustments for full height and flexbox */
@@ -169,7 +172,7 @@ st.markdown("""
         display: flex;
         gap: 5px;
     }
-    .chat-item-actions button {
+    .chat-item-actions .stButton button {
         background: none !important;
         border: none !important;
         color: #8e8ea0 !important;
@@ -180,7 +183,7 @@ st.markdown("""
         min-height: unset !important;
         width: auto !important; /* Ensure buttons are not full width */
     }
-    .chat-item-actions button:hover {
+    .chat-item-actions .stButton button:hover {
         color: #ececf1 !important;
         background-color: #555 !important;
     }
@@ -206,7 +209,7 @@ st.markdown("""
 
 
     /* Main content area */
-    .css-1d391kg { /* Target Streamlit's main content div */
+    .css-1d391kg { /* Target Streamlit's main content div (main element) */
         flex-grow: 1;
         display: flex;
         flex-direction: column;
@@ -254,6 +257,7 @@ st.markdown("""
         display: flex;
         flex-direction: column;
         align-items: center; /* Center bubbles */
+        width: 100%; /* Ensure it spans full width */
     }
     .message-row {
         display: flex;
@@ -295,6 +299,7 @@ st.markdown("""
         padding: 20px;
         text-align: center;
         color: #8e8ea0;
+        width: 100%;
     }
     .welcome-screen h2 {
         font-size: 2em;
@@ -307,6 +312,7 @@ st.markdown("""
         gap: 15px;
         justify-content: center;
         max-width: 700px;
+        width: 100%;
     }
     .suggestion-buttons .stButton button {
         background-color: #444654;
@@ -318,6 +324,7 @@ st.markdown("""
         font-weight: normal;
         transition: background-color 0.2s ease;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        min-width: 180px; /* Ensure buttons have a minimum width */
     }
     .suggestion-buttons .stButton button:hover {
         background-color: #555761;
@@ -349,6 +356,10 @@ st.markdown("""
         padding: 5px 15px;
         box-shadow: 0 0 10px rgba(0,0,0,0.3);
     }
+    /* Hide Streamlit default label for the text input */
+    .input-group .stTextInput > label {
+        display: none;
+    }
     .input-group .stTextInput > div > div > input {
         border-radius: 25px;
         padding: 12px 15px;
@@ -363,6 +374,7 @@ st.markdown("""
     .input-group .stTextInput > div > div > input::placeholder {
         color: #8e8ea0;
     }
+    /* Style for buttons within the input group */
     .input-group .stButton > button {
         background: none;
         border: none;
@@ -371,16 +383,20 @@ st.markdown("""
         padding: 5px 10px;
         cursor: pointer;
         transition: color 0.2s ease;
+        line-height: 1; /* Adjust line height for icon buttons */
+        min-height: unset; /* Remove min-height */
+        width: auto; /* Auto width */
+        margin: 0; /* Remove margin */
     }
     .input-group .stButton > button:hover {
         color: #ececf1;
     }
     /* Specific styling for the send button (last button in group) */
-    .input-group .stButton:last-child > button {
+    .input-group .stButton:nth-last-child(2) > button { /* Target the send button specifically */
         color: #10a37f; /* ChatGPT green for send */
         font-size: 1.8em;
     }
-    .input-group .stButton:last-child > button:hover {
+    .input-group .stButton:nth-last-child(2) > button:hover {
         color: #0d8a6e;
     }
 
@@ -427,46 +443,69 @@ with st.sidebar:
         # Filter by search query
         if st.session_state['search_query'].lower() in chat_data['title'].lower():
             is_active = (chat_id == st.session_state['active_chat'])
-            button_class = "active-chat" if is_active else ""
+            # Create a simple container for the chat item to apply overall styling
+            st.markdown(f"""
+                <div class='sidebar-chat-item {"active-chat" if is_active else ""}'>
+                    <div class='chat-item-title' onclick='
+                        // JavaScript to simulate Streamlit button click
+                        var button = document.querySelector("[key=\"select_chat_{chat_id}\"] > button");
+                        if (button) button.click();
+                    '>{chat_data['title']}</div>
+                    <div class='chat-item-actions'>
+                        <button onclick='
+                            var button = document.querySelector("[key=\"open_menu_{chat_id}\"] > button");
+                            if (button) button.click();
+                        '>...</button>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
 
-            # Use columns for chat title and action buttons
-            col1, col2 = st.columns([0.7, 0.3])
-            with col1:
-                # Chat selection button
-                if st.button(chat_data['title'], key=f"select_chat_{chat_id}",
-                             help="Click to switch to this chat",
-                             use_container_width=True,
-                             type="secondary"): # Use secondary type to remove default styling
-                    st.session_state['active_chat'] = chat_id
-                    st.session_state['show_rename_input'] = {} # Hide rename input on switch
-                    st.experimental_rerun()
+            # This hidden button will actually trigger the Streamlit action
+            if st.button("select_chat_hidden", key=f"select_chat_{chat_id}", help="Switch chat", type="secondary", args=([chat_id]), use_container_width=True):
+                st.session_state['active_chat'] = chat_id
+                st.session_state['show_rename_input'] = {} # Hide rename input on switch
+                st.session_state['pre_fill_input'] = "" # Clear pre-fill on switch
+                st.experimental_rerun()
 
-            with col2:
-                # Dropdown menu for Rename, Archive, Delete
-                with st.expander("...", expanded=False):
+            # Using st.expander for the "..." menu (placed outside the primary chat item button)
+            # This is a bit tricky with Streamlit's rerender model, but we can make it work.
+            # The expander won't collapse automatically without a rerun, which is fine for this context menu.
+            if st.button("...", key=f"open_menu_{chat_id}", help="More options"):
+                st.session_state['expanded_menu'] = chat_id if st.session_state.get('expanded_menu') != chat_id else None # Toggle expander
+
+            if st.session_state.get('expanded_menu') == chat_id:
+                with st.container(): # Use a container to group the menu items
                     if st.button("✏️ Rename", key=f"rename_opt_{chat_id}", use_container_width=True):
                         st.session_state['show_rename_input'][chat_id] = True
+                        st.session_state['expanded_menu'] = None # Close menu after action
                     if st.button("🗄️ Archive", key=f"archive_opt_{chat_id}", use_container_width=True):
                         archive_chat(chat_id)
+                        st.session_state['expanded_menu'] = None # Close menu after action
                     if st.button("🗑️ Delete", key=f"delete_opt_{chat_id}", use_container_width=True):
                         delete_chat(chat_id)
+                        st.session_state['expanded_menu'] = None # Close menu after action
 
             # Conditional rename input
             if st.session_state['show_rename_input'].get(chat_id):
-                with st.container(): # Use a container to group input and button
+                with st.container():
                     new_title = st.text_input(
                         "New title:",
                         value=chat_data['title'],
                         key=f"rename_input_{chat_id}",
                         label_visibility="collapsed"
                     )
-                    if st.button("Save", key=f"save_rename_{chat_id}"):
-                        if new_title.strip() and new_title.strip() != chat_data['title']:
-                            rename_chat(chat_id, new_title.strip())
-                        else:
-                            st.session_state['show_rename_input'][chat_id] = False # Hide if no change or empty
+                    col_save, col_cancel = st.columns(2)
+                    with col_save:
+                        if st.button("Save", key=f"save_rename_{chat_id}", use_container_width=True):
+                            if new_title.strip() and new_title.strip() != chat_data['title']:
+                                rename_chat(chat_id, new_title.strip())
+                            else:
+                                st.session_state['show_rename_input'][chat_id] = False # Hide if no change or empty
+                                st.experimental_rerun()
+                    with col_cancel:
+                        if st.button("Cancel", key=f"cancel_rename_{chat_id}", use_container_width=True):
+                            st.session_state['show_rename_input'][chat_id] = False
                             st.experimental_rerun()
-
 
     st.markdown("</div>") # End sidebar-chat-list
 
@@ -484,7 +523,6 @@ active_chat_data = st.session_state['chat_sessions'][st.session_state['active_ch
 # Main Header (for current chat title and "Get Plus")
 st.markdown("<div class='main-header'>", unsafe_allow_html=True)
 st.markdown(f"<div class='chat-title-display'>{active_chat_data['title']}</div>", unsafe_allow_html=True)
-# Example "Get Plus" button
 st.button("✨ Get Plus", key="get_plus_btn")
 st.markdown("</div>") # End main-header
 
@@ -496,17 +534,19 @@ if not active_chat_data['messages']:
     st.markdown("<div class='welcome-screen'>", unsafe_allow_html=True)
     st.markdown("<h2>What can I help with?</h2>", unsafe_allow_html=True)
     st.markdown("<div class='suggestion-buttons'>", unsafe_allow_html=True)
+
+    # Use a lambda function with st.button to set pre_fill_input
     if st.button("🖼️ Create image", key="suggest_image"):
-        st.session_state.chat_input = "Generate an image of " # Pre-fill input
+        st.session_state['pre_fill_input'] = "Generate an image of "
         st.experimental_rerun()
     if st.button("💡 Make a plan", key="suggest_plan"):
-        st.session_state.chat_input = "Help me plan " # Pre-fill input
+        st.session_state['pre_fill_input'] = "Help me plan "
         st.experimental_rerun()
     if st.button("📄 Summarize text", key="suggest_summarize"):
-        st.session_state.chat_input = "Summarize this text: " # Pre-fill input
+        st.session_state['pre_fill_input'] = "Summarize this text: "
         st.experimental_rerun()
     if st.button("➕ More ideas", key="suggest_more"):
-        st.session_state.chat_input = "Suggest creative ideas for " # Pre-fill input
+        st.session_state['pre_fill_input'] = "Suggest creative ideas for "
         st.experimental_rerun()
     st.markdown("</div></div>", unsafe_allow_html=True)
 else:
@@ -523,28 +563,35 @@ st.markdown("</div>") # End chat-messages-container
 st.markdown("<div class='input-area-container'>", unsafe_allow_html=True)
 st.markdown("<div class='input-group'>", unsafe_allow_html=True)
 
-# Use a form to manage input and button clicks without rerunning on every keystroke
+# The core chat input form
 with st.form(key='chat_form', clear_on_submit=True):
-    # Hidden label for accessibility, but visually hidden
-    user_input = st.text_input(
-        "Ask me anything",
-        key='user_input_field',
-        placeholder='Send a message...',
-        label_visibility="collapsed"
-    )
+    # Use st.columns to place the text input and buttons side-by-side inside the form
+    col_upload, col_text_input, col_mic, col_send = st.columns([0.07, 0.78, 0.07, 0.08])
 
-    # Separate buttons for multimodal input and send
-    col_pre_input, col_post_input = st.columns([0.1, 0.9])
-    with col_pre_input:
-        st.button("🖼️", key="upload_image_btn", help="Upload an image (Not functional yet)")
-    with col_post_input:
-        # Streamlit doesn't support placing buttons directly inside st.text_input
-        # So we'll put the microphone and send button next to the form
-        col_input, col_mic, col_send = st.columns([0.8, 0.1, 0.1])
-        with col_mic:
-            st.button("🎤", key="voice_input_btn", help="Voice input (Not functional yet)")
-        with col_send:
-            send_button = st.form_submit_button("⬆️", help="Send message")
+    with col_upload:
+        # Image upload icon (this button is part of the form, but doesn't submit by itself)
+        st.button("🖼️", key="upload_image_btn_form", help="Upload an image (Not functional yet)",
+                  type="secondary")
+
+    with col_text_input:
+        # The main text input field
+        user_input = st.text_input(
+            "Send a message...",
+            value=st.session_state['pre_fill_input'], # Use pre_fill_input here
+            key='user_input_field',
+            label_visibility="collapsed"
+        )
+        # Clear pre_fill_input after it's used once
+        if st.session_state['pre_fill_input']:
+            st.session_state['pre_fill_input'] = ""
+
+    with col_mic:
+        # Microphone icon button (also part of the form)
+        st.button("🎤", key="voice_input_btn_form", help="Voice input (Not functional yet)",
+                  type="secondary")
+    with col_send:
+        # The actual form submit button
+        send_button = st.form_submit_button("⬆️", help="Send message")
 
 # Outside the form, handle logic based on form submission
 if send_button and user_input:
@@ -557,7 +604,7 @@ if send_button and user_input:
 
     # Auto-rename chat if it's "New Chat X" and has its first message
     if active_chat_data['title'].startswith('New Chat') and len(active_chat_data['messages']) == 2:
-        truncated_message = user_input.split('\n')[0][:35] # Take first line, truncate
+        truncated_message = user_input.split('\n')[0][:35]
         if len(user_input.split('\n')[0]) > 35:
             truncated_message += "..."
         active_chat_data['title'] = truncated_message
@@ -566,4 +613,3 @@ if send_button and user_input:
 
 st.markdown("</div>") # End input-group
 st.markdown("</div>") # End input-area-container
-
