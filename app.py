@@ -9,12 +9,10 @@ if 'chat_sessions' not in st.session_state:
     st.session_state['chat_sessions'] = {}
     st.session_state['active_chat'] = None
     st.session_state['search_query'] = ""
-    st.session_state['show_rename_input'] = {}
     st.session_state['pre_fill_input'] = ""
-    st.session_state['expanded_menu'] = None
-    st.session_state['tagged_chats'] = {}  # For comrade tagging
-    st.session_state['archived_chats_visible'] = False  # Archive visibility toggle
-    st.session_state['current_input'] = ""  # To track input field state
+    st.session_state['tagged_chats'] = {}
+    st.session_state['archived_chats_visible'] = False
+    st.session_state['current_input'] = ""
 
 # --- Helper Functions for Chat Management ---
 def new_chat():
@@ -24,54 +22,14 @@ def new_chat():
         'messages': [],
         'timestamp': datetime.datetime.now().isoformat(),
         'archived': False,
-        'tagged': False  # Comrade tag status
+        'tagged': False
     }
     st.session_state['active_chat'] = chat_id
-    st.session_state['show_rename_input'] = {}
     st.session_state['pre_fill_input'] = ""
-    st.session_state['expanded_menu'] = None
-    st.session_state['current_input'] = ""  # Clear input field
-
-def rename_chat(chat_id, new_title):
-    if chat_id in st.session_state['chat_sessions']:
-        st.session_state['chat_sessions'][chat_id]['title'] = new_title
-        st.session_state['show_rename_input'][chat_id] = False
-        st.experimental_rerun()
-
-def delete_chat(chat_id):
-    if chat_id in st.session_state['chat_sessions']:
-        del st.session_state['chat_sessions'][chat_id]
-        if st.session_state['active_chat'] == chat_id:
-            available_chats = [cid for cid, chat_data in st.session_state['chat_sessions'].items() 
-                              if not chat_data['archived']]
-            st.session_state['active_chat'] = available_chats[0] if available_chats else new_chat()
-        st.experimental_rerun()
-
-def archive_chat(chat_id):
-    if chat_id in st.session_state['chat_sessions']:
-        st.session_state['chat_sessions'][chat_id]['archived'] = True
-        if st.session_state['active_chat'] == chat_id:
-            available_chats = [cid for cid, chat_data in st.session_state['chat_sessions'].items() 
-                              if not chat_data['archived']]
-            st.session_state['active_chat'] = available_chats[0] if available_chats else new_chat()
-        st.experimental_rerun()
-
-def toggle_comrade_tag(chat_id):
-    if chat_id in st.session_state['chat_sessions']:
-        current_state = st.session_state['chat_sessions'][chat_id].get('tagged', False)
-        st.session_state['chat_sessions'][chat_id]['tagged'] = not current_state
-
-def ensure_chat_exists():
-    if not st.session_state['chat_sessions']:
-        new_chat()
-    if st.session_state['active_chat'] not in st.session_state['chat_sessions']:
-        unarchived_chats = [cid for cid, chat_data in st.session_state['chat_sessions'].items() 
-                           if not chat_data['archived']]
-        st.session_state['active_chat'] = unarchived_chats[0] if unarchived_chats else new_chat()
+    st.session_state['current_input'] = ""
 
 def generate_chat_title(user_input):
     """Generate a meaningful title from user input"""
-    # Extract first meaningful sentence
     first_sentence = re.split(r'[.!?]', user_input)[0].strip()
     words = first_sentence.split()[:5]
     return ' '.join(words) + ("..." if len(first_sentence) > 15 else "")
@@ -82,7 +40,6 @@ st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="
 # --- Enhanced CSS for ChatGPT-like Styling ---
 st.markdown("""
 <style>
-    /* General Styling */
     :root {
         --sidebar-bg: #202123;
         --main-bg: #343541;
@@ -115,7 +72,6 @@ st.markdown("""
         width: 260px !important;
         background-color: var(--sidebar-bg);
         padding-top: 10px;
-        box-shadow: 2px 0 5px rgba(0,0,0,0.2);
         display: flex;
         flex-direction: column;
     }
@@ -124,7 +80,7 @@ st.markdown("""
         padding: 0 15px 10px 15px;
     }
     
-    .sidebar-header .new-chat-btn {
+    .new-chat-btn {
         background-color: var(--main-bg);
         color: var(--text-primary);
         border: 1px solid var(--border-color);
@@ -137,7 +93,7 @@ st.markdown("""
         cursor: pointer;
     }
     
-    .sidebar-header .new-chat-btn:hover {
+    .new-chat-btn:hover {
         background-color: var(--border-color);
     }
     
@@ -151,6 +107,7 @@ st.markdown("""
         border: 1px solid var(--border-color) !important;
         border-radius: 5px !important;
         padding: 8px 12px !important;
+        width: 100%;
     }
     
     .section-title {
@@ -204,10 +161,6 @@ st.markdown("""
         font-size: 0.9em;
     }
     
-    .comrade-tag {
-        color: gold;
-    }
-    
     .sidebar-footer {
         padding: 15px;
         border-top: 1px solid var(--border-color);
@@ -258,11 +211,6 @@ st.markdown("""
         padding: 8px 15px !important;
         border-radius: 20px !important;
         font-weight: bold !important;
-        transition: background-color 0.2s ease !important;
-    }
-    
-    .get-plus-btn:hover {
-        background-color: #0d8a6e !important;
     }
     
     .chat-messages-container {
@@ -288,7 +236,6 @@ st.markdown("""
         word-wrap: break-word;
         font-size: 0.95em;
         line-height: 1.5;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
     
     .user-bubble {
@@ -315,35 +262,39 @@ st.markdown("""
         margin: 0 auto;
     }
     
-    .welcome-screen h2 {
+    .welcome-title {
         font-size: 2em;
         margin-bottom: 30px;
         color: var(--text-primary);
         font-weight: 600;
     }
     
-    .suggestion-buttons {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
+    .suggestion-list {
+        display: flex;
+        flex-direction: column;
         gap: 15px;
         width: 100%;
+        text-align: left;
     }
     
-    .suggestion-btn {
-        background-color: var(--bot-bubble) !important;
-        color: var(--text-primary) !important;
-        border: 1px solid var(--border-color) !important;
-        padding: 15px !important;
-        border-radius: 10px !important;
-        font-size: 1em !important;
-        font-weight: normal !important;
-        transition: background-color 0.2s ease !important;
-        text-align: left !important;
-        justify-content: flex-start !important;
+    .suggestion-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 15px;
+        background-color: var(--bot-bubble);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
     }
     
-    .suggestion-btn:hover {
-        background-color: var(--border-color) !important;
+    .suggestion-item:hover {
+        background-color: var(--border-color);
+    }
+    
+    .suggestion-icon {
+        font-size: 1.2em;
     }
     
     /* Input Area */
@@ -371,7 +322,6 @@ st.markdown("""
         background-color: var(--input-bg);
         border-radius: 25px;
         padding: 5px 15px;
-        box-shadow: 0 0 15px rgba(0,0,0,0.2);
     }
     
     .input-group .stTextInput > div > div > input {
@@ -393,21 +343,11 @@ st.markdown("""
         color: var(--text-secondary) !important;
         font-size: 1.4em !important;
         padding: 8px 10px !important;
-        min-height: unset !important;
-        min-width: unset !important;
-    }
-    
-    .input-icon-btn:hover {
-        color: var(--text-primary) !important;
     }
     
     .send-btn {
         color: var(--accent) !important;
         font-size: 1.6em !important;
-    }
-    
-    .send-btn:hover {
-        color: #0d8a6e !important;
     }
     
     /* Hide Streamlit default elements */
@@ -417,13 +357,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Ensure a chat session exists on load
-ensure_chat_exists()
+# Initialize chats if needed
+if not st.session_state.get('chat_sessions'):
+    new_chat()
 
 # --- Sidebar (Chat Navigation and Management) ---
 with st.sidebar:
+    # New Chat button
     st.markdown("<div class='sidebar-header'>", unsafe_allow_html=True)
-    st.markdown("<div class='new-chat-btn' onclick='document.querySelector(\"[data-testid=baseButton-secondary]\").click()'>+ New chat</div>", unsafe_allow_html=True)
+    st.markdown("<div class='new-chat-btn'>+ New chat</div>", unsafe_allow_html=True)
     st.markdown("</div>")
 
     # Search functionality
@@ -438,46 +380,27 @@ with st.sidebar:
     st.markdown("</div>")
 
     # Chats section
-    st.markdown("<div class='section-title'>Chats</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>CHATS</div>", unsafe_allow_html=True)
     st.markdown("<div class='sidebar-chat-list'>", unsafe_allow_html=True)
 
-    # Filter and sort chats
-    all_chats = st.session_state['chat_sessions'].items()
-    filtered_chats = [
-        (chat_id, chat_data) for chat_id, chat_data in all_chats
-        if st.session_state['search_query'].lower() in chat_data['title'].lower() 
-        and not chat_data['archived']
-    ]
-    
-    # Sort by timestamp (newest first)
-    sorted_chats = sorted(
-        filtered_chats,
-        key=lambda item: item[1]['timestamp'],
-        reverse=True
-    )
-
-    # Display chat list
-    for chat_id, chat_data in sorted_chats:
-        is_active = (chat_id == st.session_state['active_chat'])
-        status_icon = "⭐" if chat_data.get('tagged') else ""
-        
-        st.markdown(f"""
-            <div class='sidebar-chat-item {"active-chat" if is_active else ""}'
-                 onclick="document.querySelector('[data-testid=\"baseButton-secondary-{chat_id}\"]').click()">
-                <div class='chat-item-title'>{chat_data['title']}</div>
-                <div class='chat-status-icon'>{status_icon}</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        # Hidden button to switch chats
-        if st.button("", key=f"select_chat_{chat_id}", args=([chat_id])):
-            st.session_state['active_chat'] = chat_id
-            st.session_state['expanded_menu'] = None
-            st.session_state['current_input'] = ""  # Clear input on chat switch
-            st.experimental_rerun()
+    # Display active chats
+    for chat_id, chat_data in st.session_state['chat_sessions'].items():
+        if not chat_data['archived']:
+            is_active = (chat_id == st.session_state['active_chat'])
+            st.markdown(f"""
+                <div class='sidebar-chat-item {"active-chat" if is_active else ""}'>
+                    <div class='chat-item-title'>{chat_data['title']}</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Hidden button to switch chats
+            if st.button("", key=f"select_chat_{chat_id}"):
+                st.session_state['active_chat'] = chat_id
+                st.session_state['current_input'] = ""
+                st.experimental_rerun()
 
     # Archive toggle
-    st.markdown("<div style='padding: 10px 15px;'>", unsafe_allow_html=True)
+    st.markdown("<div style='padding: 10px 0;'>", unsafe_allow_html=True)
     if st.button("🗄️ Show Archived Chats" if not st.session_state['archived_chats_visible'] else "🗄️ Hide Archived Chats"):
         st.session_state['archived_chats_visible'] = not st.session_state['archived_chats_visible']
         st.experimental_rerun()
@@ -485,34 +408,28 @@ with st.sidebar:
 
     # Archived chats section
     if st.session_state['archived_chats_visible']:
-        archived_chats = [
-            (chat_id, chat_data) for chat_id, chat_data in all_chats
-            if chat_data['archived'] and 
-            st.session_state['search_query'].lower() in chat_data['title'].lower()
-        ]
-        
-        if archived_chats:
-            st.markdown("<div class='section-title'>Archived Chats</div>", unsafe_allow_html=True)
-            for chat_id, chat_data in archived_chats:
+        archived_exists = False
+        for chat_id, chat_data in st.session_state['chat_sessions'].items():
+            if chat_data['archived']:
+                if not archived_exists:
+                    st.markdown("<div class='section-title'>ARCHIVED CHATS</div>", unsafe_allow_html=True)
+                    archived_exists = True
+                
                 st.markdown(f"""
-                    <div class='sidebar-chat-item'
-                         onclick="document.querySelector('[data-testid=\"baseButton-secondary-{chat_id}\"]').click()">
+                    <div class='sidebar-chat-item'>
                         <div class='chat-item-title'>{chat_data['title']}</div>
-                        <div class='chat-status-icon'>🗄️</div>
                     </div>
                 """, unsafe_allow_html=True)
                 
-                if st.button("", key=f"select_archived_{chat_id}", args=([chat_id])):
+                if st.button("", key=f"select_archived_{chat_id}"):
                     st.session_state['active_chat'] = chat_id
-                    st.session_state['expanded_menu'] = None
-                    st.session_state['current_input'] = ""  # Clear input on chat switch
+                    st.session_state['current_input'] = ""
                     st.experimental_rerun()
 
     st.markdown("</div>")  # End sidebar-chat-list
 
     # Sidebar Footer
     st.markdown("<div class='sidebar-footer'>", unsafe_allow_html=True)
-    st.markdown("---")
     st.markdown("<div class='user-profile'>", unsafe_allow_html=True)
     st.markdown("<div class='user-avatar'>M</div>", unsafe_allow_html=True)
     st.markdown("<div><strong>Mark Comrade</strong><br>Free Plan</div>", unsafe_allow_html=True)
@@ -521,7 +438,13 @@ with st.sidebar:
 
 # --- Main Chat Area ---
 active_chat_id = st.session_state['active_chat']
-active_chat_data = st.session_state['chat_sessions'][active_chat_id]
+if active_chat_id in st.session_state['chat_sessions']:
+    active_chat_data = st.session_state['chat_sessions'][active_chat_id]
+else:
+    # Create new chat if active chat doesn't exist
+    new_chat()
+    active_chat_id = st.session_state['active_chat']
+    active_chat_data = st.session_state['chat_sessions'][active_chat_id]
 
 # Main Header
 st.markdown("<div class='main-header'>", unsafe_allow_html=True)
@@ -533,22 +456,30 @@ st.markdown("</div>")
 st.markdown("<div class='chat-messages-container'>", unsafe_allow_html=True)
 
 if not active_chat_data['messages']:
-    # Welcome screen
+    # Welcome screen - using list items instead of buttons
     st.markdown("<div class='welcome-screen'>", unsafe_allow_html=True)
-    st.markdown("<h2>What can I help with?</h2>", unsafe_allow_html=True)
-    st.markdown("<div class='suggestion-buttons'>", unsafe_allow_html=True)
+    st.markdown("<div class='welcome-title'>What can I help with?</div>", unsafe_allow_html=True)
+    st.markdown("<div class='suggestion-list'>", unsafe_allow_html=True)
     
-    # Suggestion buttons
+    # Suggestion items as list
     suggestions = [
-        ("🖼️ Create image", "Generate an image of "),
-        ("💡 Make a plan", "Create a plan for "),
-        ("📄 Summarize text", "Summarize this text: "),
-        ("➕ More", "Show me more options for ")
+        ("🖼️", "Create image"),
+        ("💡", "Make a plan"),
+        ("📄", "Summarize text"),
+        ("➕", "More")
     ]
     
-    for icon_text, prefill in suggestions:
-        if st.button(icon_text, key=f"suggest_{icon_text}", use_container_width=True):
-            st.session_state['pre_fill_input'] = prefill
+    for icon, text in suggestions:
+        st.markdown(f"""
+            <div class='suggestion-item' onclick='document.querySelector("[key=\\'suggest_{text.replace(" ", "_")}\\']").click()'>
+                <div class='suggestion-icon'>{icon}</div>
+                <div>{text}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Hidden button for each suggestion
+        if st.button(f"suggest_{text}", key=f"suggest_{text.replace(' ', '_')}", visible=False):
+            st.session_state['pre_fill_input'] = f"{text}: "
             st.experimental_rerun()
     
     st.markdown("</div></div>", unsafe_allow_html=True)
