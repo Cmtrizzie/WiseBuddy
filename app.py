@@ -155,3 +155,4 @@ st.markdown("<script>window.scrollTo(0,document.body.scrollHeight);</script>", u
 for message in st.session_state.messages:
     role_class = "user-bubble" if message["role"] == "user" else "bot-bubble"
     st.markdown(f'<div class="chat-bubble {role_class}">{message["content"]}</div>', unsafe_allow_html=True)
+
