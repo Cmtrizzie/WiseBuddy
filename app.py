@@ -28,6 +28,10 @@ def rename_chat(chat_id, new_title):
     if chat_id in st.session_state['chat_sessions']:
         st.session_state['chat_sessions'][chat_id]['title'] = new_title
 
+# Ensure there's always an active chat when the app loads
+if not st.session_state['chat_sessions']:
+    new_chat()
+
 # Sidebar for chat selection
 st.sidebar.title("💬 Chats")
 for chat_id, chat in st.session_state['chat_sessions'].items():
@@ -36,10 +40,6 @@ for chat_id, chat in st.session_state['chat_sessions'].items():
 
 if st.sidebar.button("➕ New Chat"):
     new_chat()
-
-# Ensure there's always an active chat
-if not st.session_state['active_chat'] and st.session_state['chat_sessions']:
-    st.session_state['active_chat'] = next(iter(st.session_state['chat_sessions']))
 
 # Active chat area
 if st.session_state['active_chat']:
@@ -51,10 +51,12 @@ if st.session_state['active_chat']:
         role = "You" if msg['role'] == 'user' else "WiseBuddy"
         st.markdown(f"**{role}:** {msg['content']}")
 
-    # Input with send button inside
-    cols = st.columns([6, 1])
-    user_input = cols[0].text_input("", placeholder="Ask me anything...", key='chat_input', label_visibility='collapsed')
-    send_clicked = cols[1].button("Send")
+    # Input box with send button inside
+    col1, col2 = st.columns([5, 1])
+    with col1:
+        user_input = st.text_input("", placeholder="Ask me anything", key='chat_input', label_visibility="collapsed")
+    with col2:
+        send_clicked = st.button("Send")
 
     if send_clicked and user_input:
         active_chat['messages'].append({'role': 'user', 'content': user_input})
@@ -76,5 +78,3 @@ if st.session_state['active_chat']:
     if st.sidebar.button("🗑️ Delete Chat", key=f'delete_{st.session_state["active_chat"]}'):
         delete_chat(st.session_state['active_chat'])
         st.experimental_rerun()
-else:
-    st.write("active chat. ask me anything.")
