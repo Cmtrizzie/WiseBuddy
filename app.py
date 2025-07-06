@@ -1,94 +1,89 @@
 import streamlit as st
-from streamlit.components.v1 import html
+import google.generativeai as genai
+from datetime import datetime
 
-# Configure Streamlit page
-st.set_page_config(
-    page_title="WiseBuddy Chatbot",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# Set page config
+st.set_page_config(page_title="Gemini 1.5 Flash Chatbot", page_icon="🚀")
 
-# Hide Streamlit default elements
-hide_streamlit_style = """
-<style>
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-</style>
-"""
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+# Initialize Gemini with your API key
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])  # Store key in Streamlit secrets
 
-# Full WiseBuddy Chatbot Interface
-wisebuddy_html = r"""
-<!DOCTYPE html>
-<html lang='en'>
-<head>
-<meta charset='UTF-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1.0'>
-<title>WiseBuddy Chatbot</title>
-<script src='https://cdn.tailwindcss.com'></script>
-<style>
-body { font-family: Arial, sans-serif; background-color: #f3f4f6; margin: 0; }
-.container { max-width: 400px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); background: #fff; border-radius: 10px; overflow: hidden; }
-.header { background-color: #4f46e5; color: white; padding: 20px; text-align: center; font-size: 1.25rem; font-weight: bold; }
-.chatbox { padding: 20px; height: 400px; overflow-y: auto; background: #f9fafb; display: flex; flex-direction: column; }
-.chat-message { margin-bottom: 10px; padding: 10px; border-radius: 8px; max-width: 80%; }
-.bot { background-color: #e0e7ff; align-self: flex-start; }
-.user { background-color: #d1fae5; align-self: flex-end; }
-.input-area { display: flex; border-top: 1px solid #ddd; }
-.input-area input { flex: 1; padding: 10px; border: none; border-radius: 0 0 0 10px; outline: none; }
-.input-area button { background: #4f46e5; color: white; border: none; padding: 0 20px; border-radius: 0 0 10px 0; cursor: pointer; }
-</style>
-</head>
-<body>
-<div class='container'>
-  <div class='header'>WiseBuddy</div>
-  <div class='chatbox' id='chatbox'>
-    <div class='chat-message bot'>Hi there! I'm WiseBuddy. How can I help you today?</div>
-  </div>
-  <div class='input-area'>
-    <input type='text' id='userInput' placeholder='Type your message...' onkeypress='if(event.key === "Enter") sendMessage()'>
-    <button onclick='sendMessage()'>Send</button>
-  </div>
-</div>
-<script>
-function sendMessage() {
-  const input = document.getElementById('userInput');
-  const message = input.value.trim();
-  if (message === '') return;
+# Initialize the model (cached for performance)
+@st.cache_resource
+def load_model():
+    return genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        system_instruction="You're a helpful assistant. Respond concisely and conversationally."
+    )
 
-  const chatbox = document.getElementById('chatbox');
+model = load_model()
 
-  const userDiv = document.createElement('div');
-  userDiv.className = 'chat-message user';
-  userDiv.innerText = message;
-  chatbox.appendChild(userDiv);
+# Initialize chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Hi! I'm your Gemini Flash assistant. How can I help?"}
+    ]
 
-  input.value = '';
-  chatbox.scrollTop = chatbox.scrollHeight;
+# Display chat messages
+for message in st.session_state.messages:
+    avatar = "🤖" if message["role"] == "assistant" else "👤"
+    with st.chat_message(message["role"], avatar=avatar):
+        st.markdown(message["content"])
 
-  setTimeout(() => {
-    const botDiv = document.createElement('div');
-    botDiv.className = 'chat-message bot';
-    botDiv.innerText = generateBotResponse(message);
-    chatbox.appendChild(botDiv);
-    chatbox.scrollTop = chatbox.scrollHeight;
-  }, 800);
-}
+# User input
+if prompt := st.chat_input("Your message..."):
+    # Add user message to history
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    # Display user message
+    with st.chat_message("user", avatar="👤"):
+        st.markdown(prompt)
+    
+    # Generate response with streaming
+    with st.chat_message("assistant", avatar="🤖"):
+        message_placeholder = st.empty()
+        full_response = ""
+        
+        # Convert history to Gemini format
+        history = []
+        for msg in st.session_state.messages[:-1]:  # Exclude current prompt
+            history.append({
+                "role": "user" if msg["role"] == "user" else "model",
+                "parts": [msg["content"]]
+            })
+        
+        # Generate response
+        response = model.generate_content(
+            contents=history + [{"role": "user", "parts": [prompt]}],
+            stream=True
+        )
+        
+        # Stream the response
+        for chunk in response:
+            if chunk.text:
+                full_response += chunk.text
+                message_placeholder.markdown(full_response + "▌")
+        
+        message_placeholder.markdown(full_response)
+    
+    # Add assistant response to history
+    st.session_state.messages.append(
+        {"role": "assistant", "content": full_response}
+    )
 
-function generateBotResponse(message) {
-  const responses = [
-    "That's interesting! Tell me more.",
-    "I'm here to help. What else can I do for you?",
-    "Let's explore that idea together!",
-    "I'm not sure I understand, could you elaborate?"
-  ];
-  return responses[Math.floor(Math.random() * responses.length)];
-}
-</script>
-</body>
-</html>
-"""
-
-# Display in Streamlit
-html(wisebuddy_html, height=700, scrolling=True)
+# Sidebar controls
+with st.sidebar:
+    st.title("Gemini 1.5 Flash Chatbot")
+    st.caption(f"Using model: gemini-1.5-flash")
+    
+    if st.button("Clear Chat History"):
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Chat history cleared. How can I help?"}
+        ]
+        st.rerun()
+    
+    st.divider()
+    st.write("Current conversation:")
+    for i, msg in enumerate(st.session_state.messages):
+        prefix = "🤖" if msg["role"] == "assistant" else "👤"
+        st.text(f"{prefix} {msg['content'][:50]}{'...' if len(msg['content']) > 50 else ''}")
