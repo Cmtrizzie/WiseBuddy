@@ -1,5 +1,4 @@
 import streamlit as st
-import random
 import time
 from datetime import datetime
 
@@ -8,17 +7,16 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
     
 if "conversation_history" not in st.session_state:
-    st.session_state.conversation_history = {
-        "1": "AI Ethics Discussion",
-        "2": "Project X Summary",
-        "3": "Quantum Physics Learning",
-        "4": "Current Chat"
-    }
+    st.session_state.conversation_history = [
+        {"id": "3", "title": "Quantum Physics Learning", "time": "10:30"},
+        {"id": "2", "title": "Project X Summary", "time": "09:15"},
+        {"id": "1", "title": "AI Ethics Discussion", "time": "Yesterday"}
+    ]
 
 # Page configuration
 st.set_page_config(
-    page_title="Chat App",
-    page_icon="💬",
+    page_title="WiseBuddy",
+    page_icon="💡",  # Lightbulb icon for wisdom
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -43,6 +41,12 @@ st.markdown("""
     .conversation-item.active {
         background-color: #ebf5ff;
         border-left: 3px solid #0068c9;
+    }
+    
+    .conversation-time {
+        font-size: 0.75rem;
+        color: #666;
+        margin-top: 2px;
     }
     
     /* Profile section */
@@ -74,10 +78,16 @@ st.markdown("""
         font-weight: bold;
     }
     
-    /* Timestamps */
-    .message-time {
-        font-size: 0.75rem;
-        color: #666;
+    /* Main chat header */
+    .chat-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    
+    .chat-header-icon {
+        font-size: 28px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -86,12 +96,24 @@ st.markdown("""
 with st.sidebar:
     st.title("Chats")
     
-    # Conversation history list
-    for conv_id, title in st.session_state.conversation_history.items():
-        is_active = conv_id == "4"  # Current chat
+    # Add new conversation button at top
+    if st.button("+ New Chat", use_container_width=True, type="primary"):
+        new_chat_id = str(len(st.session_state.conversation_history) + 1)
+        st.session_state.conversation_history.insert(0, {
+            "id": new_chat_id,
+            "title": "New Conversation",
+            "time": datetime.now().strftime("%H:%M")
+        })
+        st.session_state.messages = []
+        st.rerun()
+    
+    # Conversation history list (newest first)
+    for conv in st.session_state.conversation_history:
+        is_active = not st.session_state.messages and conv["id"] == str(len(st.session_state.conversation_history))
         st.markdown(
             f'<div class="conversation-item {"active" if is_active else ""}">'
-            f'{title}'
+            f'<div>{conv["title"]}</div>'
+            f'<div class="conversation-time">{conv["time"]}</div>'
             '</div>',
             unsafe_allow_html=True
         )
@@ -113,16 +135,24 @@ with st.sidebar:
     )
 
 # Main chat area
-st.title("Current Conversation")
+st.markdown(
+    """
+    <div class="chat-header">
+        <div class="chat-header-icon">💡</div>
+        <h1 style="margin:0;">WiseBuddy</h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # Display chat messages
 for message in st.session_state.messages:
-    with st.chat_message(message["role"], avatar="👤" if message["role"] == "user" else "🤖"):
+    with st.chat_message(message["role"], avatar="👤" if message["role"] == "user" else "💡"):
         st.markdown(message["content"])
-        st.markdown(f'<div class="message-time">{message["time"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="conversation-time">{message["time"]}</div>', unsafe_allow_html=True)
 
 # Chat input
-if prompt := st.chat_input("Type your message..."):
+if prompt := st.chat_input("Ask WiseBuddy anything..."):
     # Add user message to history
     timestamp = datetime.now().strftime("%H:%M")
     st.session_state.messages.append({
@@ -133,17 +163,18 @@ if prompt := st.chat_input("Type your message..."):
     
     # Update conversation title if first message
     if len(st.session_state.messages) == 1:
-        st.session_state.conversation_history["4"] = prompt[:25] + ("..." if len(prompt) > 25 else "")
+        st.session_state.conversation_history[0]["title"] = prompt[:25] + ("..." if len(prompt) > 25 else "")
+        st.session_state.conversation_history[0]["time"] = timestamp
     
     # Display user message
     with st.chat_message("user", avatar="👤"):
         st.markdown(prompt)
-        st.markdown(f'<div class="message-time">{timestamp}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="conversation-time">{timestamp}</div>', unsafe_allow_html=True)
 
     # Generate bot response
-    with st.chat_message("assistant", avatar="🤖"):
+    with st.chat_message("assistant", avatar="💡"):
         response_container = st.empty()
-        simulated_response = "I understand you're asking about " + prompt.split()[0].lower() + ". Here's what I can share..."
+        simulated_response = f"WiseBuddy here! Regarding '{prompt.split()[0]}', my thoughts are..."
         
         # Simulated typing effect
         full_response = ""
@@ -153,8 +184,7 @@ if prompt := st.chat_input("Type your message..."):
             time.sleep(0.08)
         
         response_container.markdown(full_response)
-        timestamp = datetime.now().strftime("%H:%M")
-        st.markdown(f'<div class="message-time">{timestamp}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="conversation-time">{timestamp}</div>', unsafe_allow_html=True)
         
         st.session_state.messages.append({
             "role": "assistant", 
