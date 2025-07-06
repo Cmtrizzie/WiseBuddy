@@ -649,8 +649,8 @@ class UICustomizer:
             }}
 
             @keyframes bounce {{
-                from { transform: translateY(0); }
-                to { transform: translateY(-5px); }
+                from {{ transform: translateY(0); }}
+                to {{ transform: translateY(-5px); }}
             }}
 
             /* Modal Styling */
