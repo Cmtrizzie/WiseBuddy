@@ -47,9 +47,31 @@ st.markdown("""
     
     /* Profile section */
     .profile-section {
-        margin-top: auto;
-        padding-top: 20px;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 20%;
+        padding: 15px;
+        background: white;
         border-top: 1px solid #e0e0e0;
+    }
+    
+    .profile-content {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .profile-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #0068c9;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
     }
     
     /* Timestamps */
@@ -74,14 +96,24 @@ with st.sidebar:
             unsafe_allow_html=True
         )
     
-    # Minimal profile section
-    st.markdown('<div class="profile-section">', unsafe_allow_html=True)
-    st.write("Signed in as **User**")
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Fixed profile section at bottom
+    st.markdown(
+        """
+        <div class="profile-section">
+            <div class="profile-content">
+                <div class="profile-avatar">U</div>
+                <div>
+                    <div style="font-weight: bold;">User</div>
+                    <div style="font-size: 0.8rem; color: #666;">Active now</div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # Main chat area
 st.title("Current Conversation")
-st.caption("Discussion about various topics")
 
 # Display chat messages
 for message in st.session_state.messages:
@@ -111,7 +143,7 @@ if prompt := st.chat_input("Type your message..."):
     # Generate bot response
     with st.chat_message("assistant", avatar="🤖"):
         response_container = st.empty()
-        simulated_response = "Here's a response to your message about " + prompt.split()[0].lower() + "..."
+        simulated_response = "I understand you're asking about " + prompt.split()[0].lower() + ". Here's what I can share..."
         
         # Simulated typing effect
         full_response = ""
