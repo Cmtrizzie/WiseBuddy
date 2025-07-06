@@ -8,15 +8,18 @@ if "messages" not in st.session_state:
     
 if "conversation_history" not in st.session_state:
     st.session_state.conversation_history = [
-        {"id": "3", "title": "Quantum Physics Learning", "time": "10:30"},
-        {"id": "2", "title": "Project X Summary", "time": "09:15"},
-        {"id": "1", "title": "AI Ethics Discussion", "time": "Yesterday"}
+        {"id": "3", "title": "Project X Summary", "time": "09:15"},
+        {"id": "2", "title": "AI Ethics Discussion", "time": "Yesterday"},
+        {"id": "1", "title": "Hello", "time": "18:48"}
     ]
+
+if "show_settings" not in st.session_state:
+    st.session_state.show_settings = False
 
 # Page configuration
 st.set_page_config(
     page_title="WiseBuddy",
-    page_icon="💡",  # Lightbulb icon for wisdom
+    page_icon="💡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -24,28 +27,34 @@ st.set_page_config(
 # Custom CSS for styling
 st.markdown("""
 <style>
+    /* Main container */
+    .stApp {
+        background-color: #fafafa;
+    }
+    
     /* Conversation items */
     .conversation-item {
-        padding: 10px 15px;
-        margin: 6px 0;
+        padding: 10px 16px;
+        margin: 4px 0;
         border-radius: 8px;
         cursor: pointer;
         transition: all 0.2s;
         font-size: 14px;
+        color: #333333;
     }
     
     .conversation-item:hover {
-        background-color: #f5f5f5;
+        background-color: #f0f0f0;
     }
     
     .conversation-item.active {
-        background-color: #ebf5ff;
-        border-left: 3px solid #0068c9;
+        background-color: #e3f2fd;
+        border-left: 3px solid #1976d2;
     }
     
     .conversation-time {
         font-size: 0.75rem;
-        color: #666;
+        color: #666666;
         margin-top: 2px;
     }
     
@@ -55,8 +64,8 @@ st.markdown("""
         bottom: 0;
         left: 0;
         width: 20%;
-        padding: 15px;
-        background: white;
+        padding: 12px 16px;
+        background: #ffffff;
         border-top: 1px solid #e0e0e0;
     }
     
@@ -64,44 +73,76 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 10px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 8px;
+    }
+    
+    .profile-content:hover {
+        background-color: #f5f5f5;
     }
     
     .profile-avatar {
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
-        background-color: #0068c9;
+        background-color: #1976d2;
         color: white;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: bold;
+        font-size: 16px;
     }
     
-    /* Main chat header */
+    /* Settings modal */
+    .settings-modal {
+        position: fixed;
+        bottom: 80px;
+        left: 20px;
+        width: 18%;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        padding: 16px;
+        z-index: 100;
+        border: 1px solid #e0e0e0;
+    }
+    
+    /* Chat bubbles */
+    [data-testid="stChatMessage"] {
+        padding: 8px 12px;
+    }
+    
+    .stChatFloatingInputContainer {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    
+    /* Header */
     .chat-header {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-bottom: 15px;
-    }
-    
-    .chat-header-icon {
-        font-size: 28px;
+        margin-bottom: 16px;
     }
 </style>
 """, unsafe_allow_html=True)
+
+def toggle_settings():
+    st.session_state.show_settings = not st.session_state.show_settings
 
 # Sidebar - Conversation History
 with st.sidebar:
     st.title("Chats")
     
-    # Add new conversation button at top
+    # New chat button
     if st.button("+ New Chat", use_container_width=True, type="primary"):
         new_chat_id = str(len(st.session_state.conversation_history) + 1)
         st.session_state.conversation_history.insert(0, {
             "id": new_chat_id,
-            "title": "New Conversation",
+            "title": "New Chat",
             "time": datetime.now().strftime("%H:%M")
         })
         st.session_state.messages = []
@@ -118,14 +159,14 @@ with st.sidebar:
             unsafe_allow_html=True
         )
     
-    # Fixed profile section at bottom
+    # Profile section with click handler
     st.markdown(
         """
         <div class="profile-section">
-            <div class="profile-content">
+            <div class="profile-content" onclick="toggleSettings()">
                 <div class="profile-avatar">U</div>
                 <div>
-                    <div style="font-weight: bold;">User</div>
+                    <div style="font-weight: 500; color: #333;">User</div>
                     <div style="font-size: 0.8rem; color: #666;">Active now</div>
                 </div>
             </div>
@@ -133,13 +174,50 @@ with st.sidebar:
         """,
         unsafe_allow_html=True
     )
+    
+    # Settings modal
+    if st.session_state.show_settings:
+        st.markdown(
+            """
+            <div class="settings-modal">
+                <div style="font-weight: 500; margin-bottom: 12px;">Settings</div>
+                <div style="margin-bottom: 8px;">Account</div>
+                <div style="margin-bottom: 8px;">Appearance</div>
+                <div style="margin-bottom: 8px;">Notifications</div>
+                <div style="margin-bottom: 8px;">Privacy</div>
+                <div style="color: #1976d2; margin-top: 12px;">Log out</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+# JavaScript to handle profile click
+st.markdown(
+    """
+    <script>
+    function toggleSettings() {
+        window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "custom",
+            data: "toggle_settings"
+        }, "*");
+    }
+    </script>
+    """,
+    unsafe_allow_html=True
+)
+
+# Handle the JavaScript message
+if st.session_state.get("_custom_message_received", False):
+    toggle_settings()
+    st.session_state._custom_message_received = False
 
 # Main chat area
 st.markdown(
     """
     <div class="chat-header">
-        <div class="chat-header-icon">💡</div>
-        <h1 style="margin:0;">WiseBuddy</h1>
+        <div style="font-size: 28px;">💡</div>
+        <h1 style="margin:0; color: #333;">WiseBuddy</h1>
     </div>
     """,
     unsafe_allow_html=True
@@ -149,7 +227,7 @@ st.markdown(
 for message in st.session_state.messages:
     with st.chat_message(message["role"], avatar="👤" if message["role"] == "user" else "💡"):
         st.markdown(message["content"])
-        st.markdown(f'<div class="conversation-time">{message["time"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size: 0.75rem; color: #666; margin-top: 4px;">{message["time"]}</div>', unsafe_allow_html=True)
 
 # Chat input
 if prompt := st.chat_input("Ask WiseBuddy anything..."):
@@ -163,18 +241,18 @@ if prompt := st.chat_input("Ask WiseBuddy anything..."):
     
     # Update conversation title if first message
     if len(st.session_state.messages) == 1:
-        st.session_state.conversation_history[0]["title"] = prompt[:25] + ("..." if len(prompt) > 25 else "")
+        st.session_state.conversation_history[0]["title"] = prompt[:20] + ("..." if len(prompt) > 20 else "")
         st.session_state.conversation_history[0]["time"] = timestamp
     
     # Display user message
     with st.chat_message("user", avatar="👤"):
         st.markdown(prompt)
-        st.markdown(f'<div class="conversation-time">{timestamp}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size: 0.75rem; color: #666; margin-top: 4px;">{timestamp}</div>', unsafe_allow_html=True)
 
     # Generate bot response
     with st.chat_message("assistant", avatar="💡"):
         response_container = st.empty()
-        simulated_response = f"WiseBuddy here! Regarding '{prompt.split()[0]}', my thoughts are..."
+        simulated_response = f"Let me think about '{prompt.split()[0]}'... Here's what I've gathered:"
         
         # Simulated typing effect
         full_response = ""
@@ -184,7 +262,7 @@ if prompt := st.chat_input("Ask WiseBuddy anything..."):
             time.sleep(0.08)
         
         response_container.markdown(full_response)
-        st.markdown(f'<div class="conversation-time">{timestamp}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size: 0.75rem; color: #666; margin-top: 4px;">{timestamp}</div>', unsafe_allow_html=True)
         
         st.session_state.messages.append({
             "role": "assistant", 
