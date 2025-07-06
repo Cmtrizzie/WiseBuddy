@@ -76,6 +76,7 @@ st.markdown("""
         cursor: pointer;
         padding: 8px;
         border-radius: 8px;
+        transition: background-color 0.2s;
     }
     
     .profile-content:hover {
@@ -102,11 +103,50 @@ st.markdown("""
         left: 20px;
         width: 18%;
         background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        padding: 16px;
+        border-radius: 12px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        padding: 0;
         z-index: 100;
         border: 1px solid #e0e0e0;
+        overflow: hidden;
+        display: block;
+    }
+    
+    .settings-header {
+        padding: 20px;
+        background: #f5f7fa;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .settings-body {
+        padding: 0;
+    }
+    
+    .settings-item {
+        padding: 14px 20px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .settings-item:hover {
+        background-color: #f9f9f9;
+    }
+    
+    .settings-item-title {
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .settings-item-subtitle {
+        font-size: 0.85rem;
+        color: #666;
+    }
+    
+    .settings-footer {
+        padding: 16px 20px;
+        text-align: center;
+        border-top: 1px solid #f0f0f0;
     }
     
     /* Chat bubbles */
@@ -127,19 +167,63 @@ st.markdown("""
         gap: 10px;
         margin-bottom: 16px;
     }
-    
-    /* Hidden button overlay */
-    .profile-button-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        cursor: pointer;
-    }
 </style>
 """, unsafe_allow_html=True)
+
+# JavaScript to handle profile click and settings
+settings_js = """
+<script>
+// Function to handle profile click
+function handleProfileClick() {
+    window.parent.postMessage({
+        isStreamlitMessage: true,
+        type: "profileClick"
+    }, "*");
+}
+
+// Function to handle settings item clicks
+function handleSettingsClick(item) {
+    window.parent.postMessage({
+        isStreamlitMessage: true,
+        type: "settingsItem",
+        data: item
+    }, "*");
+}
+
+// Attach click handler to profile
+document.addEventListener("DOMContentLoaded", function() {
+    const profile = document.querySelector(".profile-content");
+    if (profile) {
+        profile.onclick = handleProfileClick;
+    }
+    
+    // Attach click handlers to settings items
+    const settingsItems = document.querySelectorAll(".settings-item");
+    settingsItems.forEach(item => {
+        item.onclick = function() {
+            handleSettingsClick(this.getAttribute("data-value"));
+        };
+    });
+});
+</script>
+"""
+
+st.components.v1.html(settings_js)
+
+# Handle profile click
+if st.session_state.get("profile_clicked"):
+    st.session_state.show_settings = not st.session_state.show_settings
+    st.session_state.profile_clicked = False
+    st.rerun()
+
+# Handle settings item clicks
+if st.session_state.get("settings_item"):
+    item = st.session_state.settings_item
+    st.toast(f"Selected: {item.replace('_', ' ').title()}")
+    if item == "logout":
+        st.session_state.show_settings = False
+        st.toast("You have been logged out", icon="🔒")
+    st.session_state.settings_item = None
 
 # Sidebar - Conversation History
 with st.sidebar:
@@ -167,7 +251,7 @@ with st.sidebar:
             unsafe_allow_html=True
         )
     
-    # Profile section with invisible button overlay
+    # Profile section
     st.markdown(
         """
         <div class="profile-section">
@@ -183,21 +267,53 @@ with st.sidebar:
         unsafe_allow_html=True
     )
     
-    # Invisible button that covers the entire profile section
-    if st.button("", key="profile_button", help="User settings"):
-        st.session_state.show_settings = not st.session_state.show_settings
-    
     # Settings modal
     if st.session_state.show_settings:
         st.markdown(
             """
             <div class="settings-modal">
-                <div style="font-weight: 500; margin-bottom: 12px;">Settings</div>
-                <div style="margin-bottom: 8px;">Account</div>
-                <div style="margin-bottom: 8px;">Appearance</div>
-                <div style="margin-bottom: 8px;">Notifications</div>
-                <div style="margin-bottom: 8px;">Privacy</div>
-                <div style="color: #1976d2; margin-top: 12px;">Log out</div>
+                <div class="settings-header">
+                    <div style="font-weight: 600; font-size: 1.1rem;">User Profile</div>
+                    <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">user@example.com</div>
+                </div>
+                
+                <div class="settings-body">
+                    <div class="settings-item" data-value="profile">
+                        <div class="settings-item-title">Profile</div>
+                        <div class="settings-item-subtitle">Update your personal information</div>
+                    </div>
+                    
+                    <div class="settings-item" data-value="account">
+                        <div class="settings-item-title">Account</div>
+                        <div class="settings-item-subtitle">Manage your subscription</div>
+                    </div>
+                    
+                    <div class="settings-item" data-value="data_controller">
+                        <div class="settings-item-title">Data Controller</div>
+                        <div class="settings-item-subtitle">Manage your data preferences</div>
+                    </div>
+                    
+                    <div class="settings-item" data-value="security">
+                        <div class="settings-item-title">Security</div>
+                        <div class="settings-item-subtitle">Password and authentication</div>
+                    </div>
+                    
+                    <div class="settings-item" data-value="appearance">
+                        <div class="settings-item-title">Appearance</div>
+                        <div class="settings-item-subtitle">Theme and display settings</div>
+                    </div>
+                    
+                    <div class="settings-item" data-value="about">
+                        <div class="settings-item-title">About</div>
+                        <div class="settings-item-subtitle">App version and information</div>
+                    </div>
+                </div>
+                
+                <div class="settings-footer">
+                    <div class="settings-item" data-value="logout" style="color: #d32f2f; border-bottom: none;">
+                        <div class="settings-item-title">Logout</div>
+                    </div>
+                </div>
             </div>
             """,
             unsafe_allow_html=True
@@ -260,3 +376,23 @@ if prompt := st.chat_input("Ask WiseBuddy anything..."):
             "content": full_response, 
             "time": timestamp
         })
+
+# Handle messages from JavaScript
+def handle_js_message(message):
+    if message.type == "profileClick":
+        st.session_state.profile_clicked = True
+        st.rerun()
+    elif message.type == "settingsItem":
+        st.session_state.settings_item = message.data
+        st.rerun()
+
+# Register the message handler
+ctx = st.runtime.scriptrunner.get_script_run_ctx()
+if ctx:
+    session_id = ctx.session_id
+    from streamlit.report_thread import get_report_ctx
+    from streamlit.server.server import Server
+    session_info = Server.get_current()._get_session_info(session_id)
+    if session_info:
+        session = session_info.session
+        session._handle_js_message = handle_js_message
