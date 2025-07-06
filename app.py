@@ -7,21 +7,18 @@ from datetime import datetime
 if "messages" not in st.session_state:
     st.session_state.messages = []
     
-if "conversation_id" not in st.session_state:
-    st.session_state.conversation_id = random.randint(1000, 9999)
-
 if "conversation_history" not in st.session_state:
     st.session_state.conversation_history = {
-        "1001": "AI Ethics Discussion",
-        "1002": "Project X Summary",
-        "1003": "Quantum Physics Learning",
-        str(st.session_state.conversation_id): "Current Chat"
+        "1": "AI Ethics Discussion",
+        "2": "Project X Summary",
+        "3": "Quantum Physics Learning",
+        "4": "Current Chat"
     }
 
 # Page configuration
 st.set_page_config(
-    page_title="ChatBot Pro",
-    page_icon="🤖",
+    page_title="Chat App",
+    page_icon="💬",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -29,35 +26,36 @@ st.set_page_config(
 # Custom CSS for styling
 st.markdown("""
 <style>
-    /* Main chat container */
-    .stChatFloatingInputContainer {
-        border-radius: 20px;
-        padding: 20px;
-    }
-    
-    /* Sidebar conversation items */
+    /* Conversation items */
     .conversation-item {
-        padding: 8px 12px;
-        margin: 4px 0;
+        padding: 10px 15px;
+        margin: 6px 0;
         border-radius: 8px;
         cursor: pointer;
         transition: all 0.2s;
+        font-size: 14px;
     }
     
     .conversation-item:hover {
-        background-color: #f0f2f6;
+        background-color: #f5f5f5;
     }
     
     .conversation-item.active {
-        background-color: #e6f7ff;
-        border-left: 3px solid #0f6cbf;
+        background-color: #ebf5ff;
+        border-left: 3px solid #0068c9;
     }
     
     /* Profile section */
     .profile-section {
-        margin-top: 20px;
+        margin-top: auto;
         padding-top: 20px;
-        border-top: 1px solid #eee;
+        border-top: 1px solid #e0e0e0;
+    }
+    
+    /* Timestamps */
+    .message-time {
+        font-size: 0.75rem;
+        color: #666;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -68,42 +66,33 @@ with st.sidebar:
     
     # Conversation history list
     for conv_id, title in st.session_state.conversation_history.items():
-        is_active = str(conv_id) == str(st.session_state.conversation_id)
+        is_active = conv_id == "4"  # Current chat
         st.markdown(
             f'<div class="conversation-item {"active" if is_active else ""}">'
-            f'<strong>{title}</strong><br>'
-            f'<small>ID: {conv_id}</small>'
+            f'{title}'
             '</div>',
             unsafe_allow_html=True
         )
     
-    # Profile section
+    # Minimal profile section
     st.markdown('<div class="profile-section">', unsafe_allow_html=True)
-    st.subheader("Profile")
-    
-    # Profile settings
-    bot_personality = st.selectbox(
-        "Bot Personality",
-        ["Friendly Assistant", "Professional Advisor", "Technical Expert", "Casual Buddy"],
-        key="personality_select"
-    )
-    
+    st.write("Signed in as **User**")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Main chat area
-st.title(f"ChatBot Pro - {bot_personality}")
-st.caption(f"Conversation ID: #{st.session_state.conversation_id} • {st.session_state.conversation_history[str(st.session_state.conversation_id)]}")
+st.title("Current Conversation")
+st.caption("Discussion about various topics")
 
 # Display chat messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"], avatar="👤" if message["role"] == "user" else "🤖"):
         st.markdown(message["content"])
-        st.caption(f"{message['time']} • {message['role'].capitalize()}")
+        st.markdown(f'<div class="message-time">{message["time"]}</div>', unsafe_allow_html=True)
 
 # Chat input
 if prompt := st.chat_input("Type your message..."):
     # Add user message to history
-    timestamp = datetime.now().strftime("%H:%M:%S")
+    timestamp = datetime.now().strftime("%H:%M")
     st.session_state.messages.append({
         "role": "user", 
         "content": prompt, 
@@ -112,39 +101,31 @@ if prompt := st.chat_input("Type your message..."):
     
     # Update conversation title if first message
     if len(st.session_state.messages) == 1:
-        st.session_state.conversation_history[str(st.session_state.conversation_id)] = prompt[:30] + ("..." if len(prompt) > 30 else "")
+        st.session_state.conversation_history["4"] = prompt[:25] + ("..." if len(prompt) > 25 else "")
     
     # Display user message
     with st.chat_message("user", avatar="👤"):
         st.markdown(prompt)
-        st.caption(f"{timestamp} • User")
+        st.markdown(f'<div class="message-time">{timestamp}</div>', unsafe_allow_html=True)
 
     # Generate bot response
     with st.chat_message("assistant", avatar="🤖"):
         response_container = st.empty()
-        simulated_response = ""
+        simulated_response = "Here's a response to your message about " + prompt.split()[0].lower() + "..."
         
         # Simulated typing effect
-        responses = {
-            "Friendly Assistant": "That's an interesting question! Let me think...",
-            "Professional Advisor": "After careful consideration, my analysis suggests...",
-            "Technical Expert": "From a technical perspective, the answer involves...",
-            "Casual Buddy": "Oh cool! So here's what I know about that..."
-        }
+        full_response = ""
+        for word in simulated_response.split():
+            full_response += word + " "
+            response_container.markdown(full_response + "▌")
+            time.sleep(0.08)
         
-        intro = responses[bot_personality]
-        
-        for chunk in intro.split():
-            simulated_response += chunk + " "
-            response_container.markdown(simulated_response + "▌")
-            time.sleep(0.1)
-        
-        response_container.markdown(simulated_response)
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        st.caption(f"{timestamp} • Assistant")
+        response_container.markdown(full_response)
+        timestamp = datetime.now().strftime("%H:%M")
+        st.markdown(f'<div class="message-time">{timestamp}</div>', unsafe_allow_html=True)
         
         st.session_state.messages.append({
             "role": "assistant", 
-            "content": simulated_response, 
+            "content": full_response, 
             "time": timestamp
         })
