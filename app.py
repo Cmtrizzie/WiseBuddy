@@ -7,8 +7,16 @@ from datetime import datetime
 if "messages" not in st.session_state:
     st.session_state.messages = []
     
-if "conversation_id" not in st.session_state:
-    st.session_state.conversation_id = random.randint(1000, 9999)
+if "conversation_history" not in st.session_state:
+    st.session_state.conversation_history = {}
+    
+if "current_conversation" not in st.session_state:
+    conv_id = random.randint(1000, 9999)
+    st.session_state.current_conversation = conv_id
+    st.session_state.conversation_history[conv_id] = {
+        "messages": [],
+        "created": datetime.now().strftime("%Y-%m-%d %H:%M")
+    }
 
 # Page configuration
 st.set_page_config(
@@ -66,62 +74,132 @@ st.markdown("""
         margin-top: 4px;
     }
     
-    /* Sidebar */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #4a00e0, #8e2de2);
-        color: white;
+    /* Conversation history items */
+    .conversation-item {
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s;
     }
     
-    /* Download button */
-    .stDownloadButton {
+    .conversation-item:hover {
+        background-color: #f0f2f6;
+    }
+    
+    .conversation-item.active {
+        background-color: #e6f0ff;
+        border-left: 3px solid #0f6cbf;
+    }
+    
+    /* Profile section */
+    .profile-card {
+        background: linear-gradient(180deg, #4a00e0, #8e2de2);
+        color: white;
+        padding: 20px;
+        border-radius: 15px;
         margin-top: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Sidebar
+# Profile section in sidebar
 with st.sidebar:
-    st.title("🤖 ChatBot Pro")
-    st.subheader(f"Conversation #{st.session_state.conversation_id}")
+    st.markdown("""
+    <div class="profile-card">
+        <div style="display:flex; align-items:center; gap:15px; margin-bottom:20px">
+            <div style="font-size:40px">👤</div>
+            <div>
+                <h3>User Profile</h3>
+                <p>Premium Member</p>
+            </div>
+        </div>
+        <div style="display:flex; justify-content:space-between">
+            <div>
+                <small>Conversations</small>
+                <p style="font-size:24px; margin:0">{}</p>
+            </div>
+            <div>
+                <small>Active Since</small>
+                <p style="font-size:24px; margin:0">2024</p>
+            </div>
+        </div>
+    </div>
+    """.format(len(st.session_state.conversation_history)), unsafe_allow_html=True)
     
-    st.divider()
-    st.markdown("### Features")
-    st.markdown("- Natural conversation flow")
-    st.markdown("- Contextual memory")
-    st.markdown("- Response streaming")
-    st.markdown("- Export history")
-    
+    # Personality selector
     st.divider()
     st.markdown("### Settings")
     bot_personality = st.selectbox(
         "Bot Personality",
-        ["Friendly Assistant", "Professional Advisor", "Technical Expert", "Casual Buddy"]
+        ["Friendly Assistant", "Professional Advisor", "Technical Expert", "Casual Buddy"],
+        key="personality"
     )
-    
+
+# Conversation history section
+with st.sidebar:
     st.divider()
-    if st.button("New Conversation", use_container_width=True):
-        st.session_state.messages = []
-        st.session_state.conversation_id = random.randint(1000, 9999)
-        st.rerun()
+    st.markdown("### Conversation History")
     
-    # Export chat history
-    if st.button("Export Conversation", use_container_width=True):
-        chat_text = f"Conversation #{st.session_state.conversation_id}\n\n"
-        for msg in st.session_state.messages:
-            role = "User" if msg["role"] == "user" else "Assistant"
-            chat_text += f"{role} ({msg['time']}):\n{msg['content']}\n\n"
+    # Display conversation history
+    for conv_id, conv_data in st.session_state.conversation_history.items():
+        is_active = conv_id == st.session_state.current_conversation
+        active_class = "active" if is_active else ""
         
-        st.download_button(
-            label="Download History",
-            data=chat_text,
-            file_name=f"chat_history_{st.session_state.conversation_id}.txt",
-            mime="text/plain",
-            use_container_width=True
+        st.markdown(
+            f"""
+            <div class="conversation-item {active_class}" onclick="setConversation({conv_id})">
+                <div><strong>Chat #{conv_id}</strong></div>
+                <small>{conv_data['created']}</small>
+                <small>{len(conv_data['messages'])} messages</small>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
+
+# JavaScript to handle conversation switching
+st.sidebar.markdown(
+    """
+    <script>
+    function setConversation(convId) {
+        Streamlit.setComponentValue(convId);
+    }
+    </script>
+    """,
+    unsafe_allow_html=True
+)
+
+# Handle conversation switching
+conv_selector = st.sidebar.empty()
+new_conv = conv_selector.number_input(
+    "Select Conversation", 
+    min_value=1000,
+    max_value=9999,
+    value=st.session_state.current_conversation,
+    key="conv_selector",
+    label_visibility="collapsed"
+)
+
+if new_conv != st.session_state.current_conversation:
+    if new_conv in st.session_state.conversation_history:
+        st.session_state.current_conversation = new_conv
+        st.session_state.messages = st.session_state.conversation_history[new_conv]["messages"]
+        st.rerun()
+
+# New conversation button
+if st.sidebar.button("➕ New Conversation", use_container_width=True):
+    new_conv_id = random.randint(1000, 9999)
+    st.session_state.current_conversation = new_conv_id
+    st.session_state.messages = []
+    st.session_state.conversation_history[new_conv_id] = {
+        "messages": [],
+        "created": datetime.now().strftime("%Y-%m-%d %H:%M")
+    }
+    st.rerun()
 
 # Main chat area
 st.title(f"ChatBot Pro - {bot_personality}")
-st.caption(f"Conversation ID: #{st.session_state.conversation_id}")
+st.caption(f"Conversation ID: #{st.session_state.current_conversation}")
 
 # Display chat messages
 for message in st.session_state.messages:
@@ -133,11 +211,14 @@ for message in st.session_state.messages:
 if prompt := st.chat_input("Type your message..."):
     # Add user message to history
     timestamp = datetime.now().strftime("%H:%M:%S")
-    st.session_state.messages.append({
+    user_message = {
         "role": "user", 
         "content": prompt, 
         "time": timestamp
-    })
+    }
+    
+    st.session_state.messages.append(user_message)
+    st.session_state.conversation_history[st.session_state.current_conversation]["messages"].append(user_message)
     
     # Display user message
     with st.chat_message("user", avatar="👤"):
@@ -207,8 +288,10 @@ if prompt := st.chat_input("Type your message..."):
         st.caption(f"{timestamp} • Assistant")
         
         # Add to session state
-        st.session_state.messages.append({
+        bot_message = {
             "role": "assistant", 
             "content": simulated_response, 
             "time": timestamp
-        })
+        }
+        st.session_state.messages.append(bot_message)
+        st.session_state.conversation_history[st.session_state.current_conversation]["messages"].append(bot_message)
