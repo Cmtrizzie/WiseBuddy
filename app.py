@@ -130,9 +130,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def toggle_settings():
-    st.session_state.show_settings = not st.session_state.show_settings
-
 # Sidebar - Conversation History
 with st.sidebar:
     st.title("Chats")
@@ -159,11 +156,11 @@ with st.sidebar:
             unsafe_allow_html=True
         )
     
-    # Profile section with click handler
+    # Profile section with button
     st.markdown(
         """
         <div class="profile-section">
-            <div class="profile-content" onclick="toggleSettings()">
+            <div class="profile-content">
                 <div class="profile-avatar">U</div>
                 <div>
                     <div style="font-weight: 500; color: #333;">User</div>
@@ -174,6 +171,10 @@ with st.sidebar:
         """,
         unsafe_allow_html=True
     )
+    
+    # Profile button with proper Streamlit click handler
+    if st.button("", key="profile_button", help="Click to open settings"):
+        st.session_state.show_settings = not st.session_state.show_settings
     
     # Settings modal
     if st.session_state.show_settings:
@@ -190,27 +191,6 @@ with st.sidebar:
             """,
             unsafe_allow_html=True
         )
-
-# JavaScript to handle profile click
-st.markdown(
-    """
-    <script>
-    function toggleSettings() {
-        window.parent.postMessage({
-            isStreamlitMessage: true,
-            type: "custom",
-            data: "toggle_settings"
-        }, "*");
-    }
-    </script>
-    """,
-    unsafe_allow_html=True
-)
-
-# Handle the JavaScript message
-if st.session_state.get("_custom_message_received", False):
-    toggle_settings()
-    st.session_state._custom_message_received = False
 
 # Main chat area
 st.markdown(
