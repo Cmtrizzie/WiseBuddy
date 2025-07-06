@@ -127,6 +127,17 @@ st.markdown("""
         gap: 10px;
         margin-bottom: 16px;
     }
+    
+    /* Hidden button overlay */
+    .profile-button-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -156,7 +167,7 @@ with st.sidebar:
             unsafe_allow_html=True
         )
     
-    # Profile section with button
+    # Profile section with invisible button overlay
     st.markdown(
         """
         <div class="profile-section">
@@ -172,8 +183,8 @@ with st.sidebar:
         unsafe_allow_html=True
     )
     
-    # Profile button with proper Streamlit click handler
-    if st.button("", key="profile_button", help="Click to open settings"):
+    # Invisible button that covers the entire profile section
+    if st.button("", key="profile_button", help="User settings"):
         st.session_state.show_settings = not st.session_state.show_settings
     
     # Settings modal
