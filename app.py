@@ -1,1044 +1,722 @@
 import streamlit as st
 import time
 import uuid
-from typing import List, Dict, Optional, Callable
+from datetime import datetime
+import json
+import base64
 
-# ================ CONSTANTS & CONFIGURATION ================
-PRIMARY_COLOR = "#5a7d9a"
-ACCENT_COLOR = "#8cabc2"
-BACKGROUND_COLOR = "#f0f2f5"
-CHAT_BOT_BG_COLOR = "#ffffff"
-SIDEBAR_BG_COLOR = "#3f5e82"
-USER_MESSAGE_COLOR = "#a3c2e0"
-BOT_MESSAGE_COLOR = "#e0e7ee"
-TEXT_COLOR_DARK = "#333"
-TEXT_COLOR_LIGHT = "#ffffff"
-BORDER_COLOR_LIGHT = "#e0e0e0"
+# Initialization
+if 'chat_sessions' not in st.session_state:
+    st.session_state.chat_sessions = [
+        {'id': 'chat-1', 'title': 'Conversation with John Doe', 'icon': 'comments', 'messages': []},
+        {'id': 'chat-2', 'title': 'Discussion about AI Ethics', 'icon': 'robot', 'messages': []},
+        {'id': 'chat-3', 'title': 'Summary of Project X', 'icon': 'file-alt', 'messages': []},
+    ]
 
-# Configure Streamlit page
-st.set_page_config(
-    page_title="WiseBuddy Chatbot",
-    page_icon="🧠",
-    layout="centered",
-    initial_sidebar_state="expanded"
-)
+if 'current_chat' not in st.session_state:
+    st.session_state.current_chat = st.session_state.chat_sessions[0]['id']
 
-# ================ SESSION STATE MANAGEMENT ================
-class SessionStateManager:
-    """Manages initialization and access to session state variables"""
-    
-    @staticmethod
-    def initialize():
-        """Initialize all session state variables"""
-        defaults = {
-            "chat_history": SessionStateManager._get_default_chat_history(),
-            "current_chat_id": None,
-            "action_target_chat_id": None,
-            "action_type": None,
-            "show_modal": False,
-            "modal_title": "",
-            "modal_message": "",
-            "modal_confirm_callback": None,
-            "typing_indicator_placeholder": None,
-            "selected_chat_for_action": None # <--- ADDED: To highlight chat for action
+if 'sidebar_open' not in st.session_state:
+    st.session_state.sidebar_open = True
+
+if 'editing_chat' not in st.session_state:
+    st.session_state.editing_chat = None
+
+if 'deleting_chat' not in st.session_state:
+    st.session_state.deleting_chat = None
+
+if 'menu_open' not in st.session_state:
+    st.session_state.menu_open = False
+
+# CSS Styles
+def inject_css():
+    st.markdown("""
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+
+        .chatbot-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chatbot-messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .chatbot-messages::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 10px;
+        }
+
+        .chatbot-messages::-webkit-scrollbar-thumb:hover {
+            background: #bbb;
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-8px); }
+        }
+
+        .typing-indicator .dot {
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .typing-indicator .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 150px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+        }
+
+        .dropdown-menu.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-menu ul {
+            list-style: none;
+            padding: 8px 0;
+            margin: 0;
+        }
+
+        .dropdown-menu ul li {
+            padding: 10px 15px;
+            cursor: pointer;
+            color: #333;
+            font-size: 0.95em;
+            transition: background-color 0.2s ease;
+        }
+
+        .dropdown-menu ul li:hover {
+            background-color: #f0f2f5;
+        }
+
+        .main-app-container {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+            max-width: 900px;
+            background-color: #f0f2f5;
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-container {
+            width: 250px;
+            background-color: #3f5e82;
+            color: #ffffff;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar-header {
+            padding: 15px 20px;
+            font-size: 1.2em;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-close-btn {
+            font-size: 1.5em;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+        }
+
+        .sidebar-close-btn:hover {
+            opacity: 1;
+        }
+
+        .sidebar-history {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 15px 10px;
+        }
+
+        .sidebar-history ul {
+            list-style-type: none !important; /* Force remove bullets */
+            padding: 0 !important; /* Remove default padding for list items */
+            margin: 0;
+        }
+
+        .sidebar-history ul li {
+            padding: 14px 15px;
+            margin-bottom: 15px; /* Increased spacing */
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            font-size: 0.95em;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; /* Align items to the start */
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 8px; /* Slightly more rounded */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-history ul li:last-child {
+            margin-bottom: 0;
+        }
+
+        .sidebar-history ul li:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .sidebar-history ul li.active {
+            background-color: rgba(255, 255, 255, 0.25);
+            font-weight: bold;
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .sidebar-history ul li .chat-title {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-history ul li .rename-input {
+            background-color: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 5px;
+            padding: 5px 8px;
+            font-size: 0.9em;
+            color: #fff;
+            outline: none;
+            width: calc(100% - 10px);
+        }
+
+        .chatbot-container {
+            flex-grow: 1;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+        }
+
+        .chatbot-header {
+            background-color: #5a7d9a;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            background-color: #8cabc2;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 18px;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header-right {
+            position: relative;
+        }
+
+        .menu-icon {
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .menu-icon:hover {
+            opacity: 1;
+        }
+
+        .chatbot-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background-color: #fdfdfd;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message-bubble {
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .bot-message {
+            background-color: #e0e7ee;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .user-message {
+            background-color: #a3c2e0;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .quick-replies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .quick-reply-btn {
+            background-color: #d1e2f3;
+            color: #3f5e82;
+            border: 1px solid #b3d1ed;
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .quick-reply-btn:hover {
+            background-color: #c0d7ee;
+            transform: translateY(-1px);
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background-color: #e0e7ee;
+            border-radius: 18px;
+            padding: 12px 16px;
+            width: fit-content;
+            margin-top: 12px;
+            border-bottom-left-radius: 4px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background-color: #8cabc2;
+            border-radius: 50%;
+        }
+
+        .chatbot-input-area {
+            padding: 15px;
+            background-color: #f7f9fb;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chatbot-input-area input {
+            flex-grow: 1;
+            padding: 12px 18px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .chatbot-input-area input:focus {
+            border-color: #5a7d9a;
+            box-shadow: 0 0 0 3px rgba(90, 125, 154, 0.2);
+        }
+
+        .send-button {
+            background-color: #5a7d9a;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .send-button:hover {
+            background-color: #4a6c8a;
+            transform: translateY(-2px);
+        }
+
+        .send-button:active {
+            transform: translateY(0);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+        }
+
+        .modal-content {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            max-width: 350px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            color: #333;
+        }
+
+        .modal-content p {
+            margin-bottom: 25px;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: space-around;
+            gap: 15px;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            flex: 1;
+        }
+
+        .modal-btn.confirm-btn {
+            background-color: #ef4444;
+            color: #ffffff;
+            border: none;
+        }
+
+        .modal-btn.confirm-btn:hover {
+            background-color: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .modal-btn.cancel-btn {
+            background-color: #e5e7eb;
+            color: #374151;
+            border: none;
+        }
+
+        .modal-btn.cancel-btn:hover {
+            background-color: #d1d5db;
+            transform: translateY(-1px);
         }
         
-        for key, value in defaults.items():
-            if key not in st.session_state:
-                st.session_state[key] = value
-                
-        # Set current chat if not set
-        if st.session_state.current_chat_id is None and st.session_state.chat_history:
-            st.session_state.current_chat_id = st.session_state.chat_history[0]['id']
-
-    @staticmethod
-    def _get_default_chat_history() -> List[Dict]:
-        """Return default chat history structure with icons from image"""
-        return [
-            {
-                'id': str(uuid.uuid4()),
-                'title': 'Conversation with John Doe',
-                'icon': 'comments', # Speech bubble
-                'messages': [
-                    {"role": "assistant", "content": "Hello! I'm WiseBuddy, your intelligent assistant. How can I help you today?"},
-                    {"role": "user", "content": "What's the weather like in Kasese, Uganda right now?"},
-                    {"role": "assistant", "content": "The current time in Kasese, Western Region, Uganda is 10:48 PM, Friday, July 4, 2025. I don't have real-time weather data, but I can tell you it's likely nighttime there."},
-                ]
-            },
-            {
-                'id': str(uuid.uuid4()),
-                'title': 'Discussion about AI Ethics',
-                'icon': 'robot', # Robot icon
-                'messages': [
-                    {"role": "assistant", "content": "Let's explore the ethical considerations of AI."},
-                ]
-            },
-            {
-                'id': str(uuid.uuid4()),
-                'title': 'Summary of Project X',
-                'icon': 'file-alt', # Document icon
-                'messages': [
-                    {"role": "assistant", "content": "Here's a summary of Project X."},
-                ]
-            },
-            {
-                'id': str(uuid.uuid4()),
-                'title': 'Learning about Quantum Physics',
-                'icon': 'cogs', # Gear icon
-                'messages': [
-                    {"role": "assistant", "content": "Let's delve into the fascinating world of quantum physics."},
-                ]
-            },
-            {
-                'id': str(uuid.uuid4()),
-                'title': 'Recipe for Vegan Lasagna',
-                'icon': 'utensils', # Fork and knife icon
-                'messages': [
-                    {"role": "assistant", "content": "Looking for a delicious vegan lasagna recipe?"},
-                ]
-            },
-            {
-                'id': str(uuid.uuid4()),
-                'title': 'Travel Plans to Japan',
-                'icon': 'plane-departure', # Airplane icon
-                'messages': [
-                    {"role": "assistant", "content": "Planning your trip to Japan? I can help!"},
-                ]
-            },
-            {
-                'id': str(uuid.uuid4()),
-                'title': 'Fitness Routine Advice',
-                'icon': 'dumbbell', # Dumbbell icon
-                'messages': [
-                    {"role": "assistant", "content": "Need advice on your fitness routine?"},
-                ]
-            },
-            {
-                'id': str(uuid.uuid4()),
-                'title': 'Coding Debugging Session',
-                'icon': 'code', # Code tags icon
-                'messages': [
-                    {"role": "assistant", "content": "Let's debug some code together."},
-                ]
-            },
-        ]
-
-# ================ CHAT MANAGEMENT FUNCTIONS ================
-class ChatManager:
-    """Handles chat-related operations and data management"""
-    
-    @staticmethod
-    def get_current_chat() -> Optional[Dict]:
-        """Get the current active chat"""
-        for chat in st.session_state.chat_history:
-            if chat['id'] == st.session_state.current_chat_id:
-                return chat
-        return None
-
-    @staticmethod
-    def get_current_messages() -> List[Dict]:
-        """Get messages for the current chat"""
-        current_chat = ChatManager.get_current_chat()
-        return current_chat['messages'] if current_chat else []
-
-    @staticmethod
-    def add_message(role: str, content: str):
-        """Add message to current chat"""
-        current_chat = ChatManager.get_current_chat()
-        if current_chat:
-            current_chat['messages'].append({"role": role, "content": content})
-
-    @staticmethod
-    def create_new_chat():
-        """Create a new chat session"""
-        new_chat = {
-            'id': str(uuid.uuid4()),
-            'title': 'New Chat',
-            'icon': 'comment', # Default icon for new chats
-            'messages': [
-                {"role": "assistant", "content": "Hello! I'm WiseBuddy, your intelligent assistant. How can I help you today?"}
-            ]
+        /* New styling for chat history items */
+        .chat-history-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 15px;
+            margin-bottom: 15px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
         }
         
-        # Add to beginning of history
-        st.session_state.chat_history.insert(0, new_chat)
-        st.session_state.current_chat_id = new_chat['id']
-        st.session_state.selected_chat_for_action = new_chat['id'] # Select new chat for actions
+        .chat-history-item:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
         
-        # Reset any pending actions
-        st.session_state.action_target_chat_id = None
-        st.session_state.action_type = None
-
-    @staticmethod
-    def set_current_chat(chat_id: str):
-        """Set the active chat"""
-        st.session_state.current_chat_id = chat_id
-        st.session_state.action_target_chat_id = None
-        st.session_state.action_type = None
-        # selected_chat_for_action is handled by the button's on_click directly now
-
-    @staticmethod
-    def rename_chat(chat_id: str, new_title: str):
-        """Rename a chat session"""
-        if not new_title.strip():
-            return
-            
-        for chat in st.session_state.chat_history:
-            if chat['id'] == chat_id:
-                if new_title != chat['title']:
-                    chat['title'] = new_title
-                    # Not adding a message to current chat for rename, as it causes
-                    # recursion issues if the chat itself is the one being renamed
-                    # and currently active. It's more of a UI action.
-                break
-                
-        st.session_state.action_target_chat_id = None
-        st.session_state.action_type = None
-        st.session_state.selected_chat_for_action = None # Clear selection after rename
-
-    @staticmethod
-    def delete_chat(chat_id: str):
-        """Delete a chat session"""
-        chat_to_delete = None
-        for chat in st.session_state.chat_history:
-            if chat['id'] == chat_id:
-                chat_to_delete = chat
-                break
-                
-        if not chat_to_delete:
-            return
-            
-        # Remove chat from history
-        st.session_state.chat_history = [
-            chat for chat in st.session_state.chat_history 
-            if chat['id'] != chat_id
-        ]
+        .chat-history-item.active {
+            background-color: rgba(255, 255, 255, 0.25);
+            font-weight: bold;
+            border-color: rgba(255, 255, 255, 0.3);
+        }
         
-        # Handle current chat reassignment
-        if st.session_state.current_chat_id == chat_id:
-            st.session_state.current_chat_id = (
-                st.session_state.chat_history[0]['id'] 
-                if st.session_state.chat_history 
-                else None
-            )
-            
-        # Clear selected action state
-        st.session_state.action_target_chat_id = None
-        st.session_state.action_type = None
-        st.session_state.selected_chat_for_action = None # Clear selection after delete
-
-# ================ MODAL MANAGEMENT ================
-class ModalManager:
-    """Handles confirmation modal display and interactions"""
-    
-    @staticmethod
-    def show(title: str, message: str, confirm_callback: Callable):
-        """Show confirmation modal"""
-        st.session_state.modal_title = title
-        st.session_state.modal_message = message
-        st.session_state.modal_confirm_callback = confirm_callback
-        st.session_state.show_modal = True
-
-    @staticmethod
-    def hide():
-        """Hide confirmation modal"""
-        st.session_state.show_modal = False
-        st.session_state.modal_title = ""
-        st.session_state.modal_message = ""
-        st.session_state.modal_confirm_callback = None
-
-    @staticmethod
-    def render():
-        """Render the modal if active"""
-        if not st.session_state.show_modal:
-            return
-            
-        st.markdown(f"""
-        <div class="modal-overlay active">
-            <div class="modal-content">
-                <h4>{st.session_state.modal_title}</h4>
-                <p>{st.session_state.modal_message}</p>
-                <div class="modal-buttons">
-                    <button class="modal-btn cancel-btn" id="modal_cancel_btn">Cancel</button>
-                    <button class="modal-btn confirm-btn" id="modal_confirm_btn">Confirm</button>
-                </div>
-            </div>
-        </div>
-        <script>
-            // Ensure this script is only run once or handled carefully if re-rendered
-            // Streamlit re-runs scripts, so attaching listeners again can be an issue.
-            // Using a simple postMessage system.
-            const confirmBtn = document.getElementById('modal_confirm_btn');
-            if (confirmBtn && !confirmBtn.dataset.listenerAttached) {{
-                confirmBtn.onclick = () => {{
-                    window.parent.postMessage({{type: 'confirmModal'}}, '*');
-                }};
-                confirmBtn.dataset.listenerAttached = 'true';
-            }}
-
-            const cancelBtn = document.getElementById('modal_cancel_btn');
-            if (cancelBtn && !cancelBtn.dataset.listenerAttached) {{
-                cancelBtn.onclick = () => {{
-                    window.parent.postMessage({{type: 'cancelModal'}}, '*');
-                }};
-                cancelBtn.dataset.listenerAttached = 'true';
-            }}
-        </script>
-        """, unsafe_allow_html=True)
-
-# ================ UI COMPONENTS ================
-class UICustomizer:
-    """Handles custom CSS and UI styling"""
-    
-    @staticmethod
-    def inject_custom_css():
-        """Inject custom CSS styles"""
-        st.markdown(f"""
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-        <style>
-            /* General app styling */
-            body {{
-                font-family: 'Roboto', sans-serif;
-                margin: 0;
-                padding: 0;
-                background-color: {BACKGROUND_COLOR};
-                color: {TEXT_COLOR_DARK};
-            }}
-
-            .main-app-container {{
-                display: flex;
-                height: 100vh;
-                width: 100%;
-            }}
-
-            /* Streamlit specific overrides */
-            .stApp {{
-                background-color: {BACKGROUND_COLOR};
-            }}
-
-            /* Adjust main content area to make space for custom sidebar */
-            .main .block-container {{
-                padding-top: 1rem;
-                padding-bottom: 1rem;
-                padding-left: 1rem;
-                padding-right: 1rem;
-            }}
-
-            /* Sidebar styling */
-            .stSidebar {{
-                background-color: {SIDEBAR_BG_COLOR};
-                padding: 15px;
-                border-right: 1px solid #ccc; /* Subtle border for separation */
-                color: {TEXT_COLOR_LIGHT};
-                box-shadow: 2px 0 5px rgba(0,0,0,0.2);
-            }}
-            
-            /* Custom Sidebar Header */
-            .sidebar-header-custom {{
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 10px 0;
-                margin-bottom: 20px;
-                border-bottom: 1px solid rgba(255,255,255,0.1);
-            }}
-            .sidebar-header-custom .header-title {{
-                font-size: 1.2rem;
-                font-weight: bold;
-                color: {TEXT_COLOR_LIGHT};
-            }}
-            .sidebar-header-custom .close-sidebar-btn {{
-                background: none;
-                border: none;
-                color: {TEXT_COLOR_LIGHT};
-                font-size: 1.2rem;
-                cursor: pointer;
-                padding: 5px;
-                border-radius: 5px;
-            }}
-            .sidebar-header-custom .close-sidebar-btn:hover {{
-                background-color: rgba(255,255,255,0.2);
-            }}
-
-
-            /* New Chat Button */
-            #new_chat_button {{
-                background-color: {ACCENT_COLOR};
-                color: {TEXT_COLOR_DARK};
-                border: none;
-                padding: 10px 15px;
-                border-radius: 8px;
-                cursor: pointer;
-                font-size: 0.95rem;
-                font-weight: bold;
-                margin-bottom: 20px;
-                transition: background-color 0.2s ease, transform 0.1s ease;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            }}
-            #new_chat_button:hover {{
-                background-color: #7aa1be; /* Slightly darker accent */
-                transform: translateY(-1px);
-            }}
-            #new_chat_button:active {{
-                transform: translateY(0);
-                box-shadow: none;
-            }}
-
-            /* Sidebar History List */
-            .sidebar-history-list {{
-                list-style: none;
-                padding: 0;
-                margin: 0;
-            }}
-
-            /* Individual Chat Item (NEW STYLES FOR IMAGE MATCH) */
-            /* This targets the actual button element generated by st.button */
-            .stButton > button {{
-                border: none !important;
-                background: none !important;
-                padding: 0 !important; /* Remove default button padding */
-                margin: 0 !important;
-                width: 100% !important;
-                text-align: left !important;
-                /* Remove Streamlit's default button focus outline */
-                outline: none !important; 
-                box-shadow: none !important;
-                transition: none !important; /* Disable Streamlit's default transitions */
-            }}
-            /* When Streamlit's internal button is focused */
-            .stButton > button:focus:not(:active) {{
-                box-shadow: none !important;
-                outline: none !important;
-            }}
-            
-            /* The wrapper for the content inside the button */
-            .chat-item-wrapper {{
-                display: flex;
-                align-items: center;
-                padding: 12px 15px; /* Adjust padding for visual appeal */
-                margin-bottom: 8px; /* Space between items */
-                border-radius: 8px; /* Slightly rounded corners */
-                background-color: rgba(255, 255, 255, 0.1); /* Light background for items */
-                color: {TEXT_COLOR_LIGHT};
-                cursor: pointer;
-                transition: background-color 0.2s ease, transform 0.1s ease, border 0.2s ease, box-shadow 0.2s ease;
-                border: 1px solid transparent; /* Default transparent border */
-                height: 50px; /* Fixed height for consistent look */
-                box-sizing: border-box; /* Include padding and border in height */
-            }}
-
-            .chat-item-wrapper:hover {{
-                background-color: rgba(255, 255, 255, 0.2); /* Hover effect */
-                transform: translateY(-1px);
-            }}
-            .chat-item-wrapper:active {{
-                 transform: translateY(0);
-            }}
-
-            .chat-item-wrapper.active {{
-                background-color: {PRIMARY_COLOR}; /* Active chat background */
-                border: 1px solid {ACCENT_COLOR}; /* Border for active item */
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); /* Subtle shadow for active */
-            }}
-            
-            .chat-item-wrapper.selected-for-action {{
-                border: 2px dashed {ACCENT_COLOR}; /* Dotted border for selected for action */
-                box-shadow: 0 0 5px rgba(255,255,255,0.5);
-            }}
-
-            .chat-history-icon {{
-                margin-right: 12px; /* Space between icon and text */
-                font-size: 1.1rem;
-                color: {ACCENT_COLOR}; /* Icon color */
-            }}
-
-            .chat-item-wrapper.active .chat-history-icon {{
-                color: {TEXT_COLOR_LIGHT}; /* Icon color for active item */
-            }}
-
-            .chat-title {{
-                font-size: 0.95rem;
-                font-weight: 500;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                flex-grow: 1; /* Allow title to take available space */
-            }}
-
-            /* Action Panel for selected chat */
-            .chat-action-panel {{
-                margin-top: 20px;
-                padding-top: 15px;
-                border-top: 1px solid rgba(255,255,255,0.1);
-                color: {TEXT_COLOR_LIGHT};
-                font-size: 0.9rem;
-            }}
-            .chat-action-panel .stButton > button {{ /* Target buttons inside action panel */
-                margin-top: 5px;
-                background-color: {ACCENT_COLOR} !important; /* Override default Streamlit button bg */
-                color: {TEXT_COLOR_DARK} !important;
-                border-radius: 5px !important;
-                border: none !important;
-                padding: 8px 12px !important;
-                font-size: 0.85rem !important;
-                cursor: pointer !important;
-                transition: background-color 0.2s ease !important;
-                box-shadow: none !important;
-                outline: none !important;
-            }}
-            .chat-action-panel .stButton > button:hover {{
-                background-color: #7aa1be !important;
-            }}
-            .chat-action-panel #action_cancel_select_*.stButton>button {{
-                background-color: #b05c5c !important; /* Red for 'X' cancel button */
-                color: {TEXT_COLOR_LIGHT} !important;
-            }}
-            .chat-action-panel #action_cancel_select_*.stButton>button:hover {{
-                background-color: #cc6d6d !important;
-            }}
-            .chat-action-panel .st-emotion-cache-16txt3u > div {{ /* Target the inner div of st.columns in action panel */
-                 margin: 0 !important; /* Remove unwanted column margins */
-                 padding: 0 3px !important; /* Small padding between action buttons */
-            }}
-
-
-            /* Rename Panel */
-            .rename-panel {{
-                margin-top: 20px;
-                padding-top: 15px;
-                border-top: 1px solid rgba(255,255,255,0.1);
-                color: {TEXT_COLOR_LIGHT};
-            }}
-            .rename-panel h3 {{
-                color: {TEXT_COLOR_LIGHT};
-                font-size: 1rem;
-                margin-bottom: 10px;
-            }}
-            /* Target Streamlit's text input component */
-            .rename-panel .stTextInput > div > div > input {{
-                background-color: rgba(255,255,255,0.9);
-                color: {TEXT_COLOR_DARK};
-                border: 1px solid {BORDER_COLOR_LIGHT};
-                border-radius: 5px;
-                padding: 8px;
-                width: calc(100% - 16px);
-                margin-bottom: 10px;
-            }}
-            .rename-panel .stButton > button {{ /* Target buttons inside rename panel */
-                background-color: {ACCENT_COLOR} !important;
-                color: {TEXT_COLOR_DARK} !important;
-                border-radius: 5px !important;
-                border: none !important;
-                padding: 8px 12px !important;
-                font-size: 0.85rem !important;
-                cursor: pointer !important;
-                transition: background-color 0.2s ease !important;
-                box-shadow: none !important;
-                outline: none !important;
-            }}
-            .rename-panel .stButton > button:hover {{
-                background-color: #7aa1be !important;
-            }}
-            
-            /* Chatbot Container */
-            .chatbot-container {{
-                flex-grow: 1;
-                display: flex;
+        .chat-history-icon {
+            margin-right: 10px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .main-app-container {
                 flex-direction: column;
-                background-color: {CHAT_BOT_BG_COLOR};
-                border-radius: 10px;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-                margin: 20px;
-                overflow: hidden;
-            }}
-
-            /* Chatbot Header */
-            .chatbot-header {{
-                display: flex;
-                align-items: center;
-                padding: 15px 20px;
-                background-color: {PRIMARY_COLOR};
-                color: {TEXT_COLOR_LIGHT};
-                border-bottom: 1px solid {BORDER_COLOR_LIGHT};
-                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            }}
-
-            .chatbot-header .header-left {{
-                display: flex;
-                align-items: center;
-            }}
-
-            .chatbot-header .avatar {{
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                background-color: {ACCENT_COLOR};
-                color: {TEXT_COLOR_DARK};
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                font-weight: bold;
-                margin-right: 10px;
-                font-size: 1.1rem;
-            }}
-
-            .chatbot-header h3 {{
-                margin: 0;
-                font-size: 1.2rem;
-            }}
-
-            /* Chat Messages */
-            .stChatMessage {{
-                padding: 10px 20px;
-                margin-bottom: 8px;
-                border-radius: 15px;
-                max-width: 80%;
-                word-wrap: break-word;
-                font-size: 0.95rem;
-            }}
-            /* Target the div inside stChatMessage that holds the actual message content */
-            .stChatMessage > div[data-testid="stChatMessageContent"] {{
-                padding: 10px 15px; /* Adjust padding for the message bubble */
-            }}
-
-            .stChatMessage:nth-child(odd) > div[data-testid="stChatMessageContent"] {{ /* User messages */
-                background-color: {USER_MESSAGE_COLOR};
-                color: {TEXT_COLOR_DARK};
-                margin-left: auto;
-                border-bottom-right-radius: 0;
-            }}
-
-            .stChatMessage:nth-child(even) > div[data-testid="stChatMessageContent"] {{ /* Bot messages */
-                background-color: {BOT_MESSAGE_COLOR};
-                color: {TEXT_COLOR_DARK};
-                margin-right: auto;
-                border-bottom-left-radius: 0;
-            }}
-
-            /* Chat input */
-            .st-chat-input > div > div > div > textarea {{
-                border-radius: 20px;
-                padding: 10px 15px;
-                border: 1px solid {BORDER_COLOR_LIGHT};
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            }}
-
-            /* Typing indicator */
-            .typing-indicator {{
-                display: flex;
-                align-items: center;
-                margin: 10px 20px;
-                height: 20px; /* Reserve space */
-            }}
-
-            .typing-indicator .dot {{
-                width: 8px;
-                height: 8px;
-                background-color: {ACCENT_COLOR};
-                border-radius: 50%;
-                margin: 0 2px;
-                animation: bounce 0.6s infinite alternate;
-            }}
-
-            .typing-indicator .dot:nth-child(2) {{
-                animation-delay: 0.2s;
-            }}
-
-            .typing-indicator .dot:nth-child(3) {{
-                animation-delay: 0.4s;
-            }}
-
-            @keyframes bounce {{
-                from {{ transform: translateY(0); }}
-                to {{ transform: translateY(-5px); }}
-            }}
-
-            /* Modal Styling */
-            .modal-overlay {{
-                position: fixed;
-                top: 0;
-                left: 0;
+                height: auto;
+            }
+            
+            .sidebar-container {
                 width: 100%;
-                height: 100%;
-                background-color: rgba(0, 0, 0, 0.6);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 1000;
-                visibility: hidden;
-                opacity: 0;
-                transition: visibility 0s, opacity 0.3s ease;
-            }}
-
-            .modal-overlay.active {{
-                visibility: visible;
-                opacity: 1;
-            }}
-
-            .modal-content {{
-                background-color: {CHAT_BOT_BG_COLOR};
-                padding: 30px;
-                border-radius: 10px;
-                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-                text-align: center;
-                max-width: 400px;
-                width: 90%;
-            }}
-
-            .modal-content h4 {{
-                color: {TEXT_COLOR_DARK};
-                margin-top: 0;
-                font-size: 1.4rem;
-            }}
-
-            .modal-content p {{
-                color: {TEXT_COLOR_DARK};
-                margin-bottom: 25px;
-                font-size: 1rem;
-            }}
-
-            .modal-buttons {{
-                display: flex;
-                justify-content: center;
-                gap: 15px;
-            }}
-
-            .modal-btn {{
-                padding: 10px 25px;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                font-size: 1rem;
-                font-weight: bold;
-                transition: background-color 0.2s ease, transform 0.1s ease;
-            }}
-
-            .modal-btn.confirm-btn {{
-                background-color: #dc3545; /* Red for confirm delete */
-                color: {TEXT_COLOR_LIGHT};
-            }}
-
-            .modal-btn.confirm-btn:hover {{
-                background-color: #c82333;
-                transform: translateY(-1px);
-            }}
-
-            .modal-btn.cancel-btn {{
-                background-color: {BORDER_COLOR_LIGHT};
-                color: {TEXT_COLOR_DARK};
-            }}
-
-            .modal-btn.cancel-btn:hover {{
-                background-color: #c0c0c0;
-                transform: translateY(-1px);
-            }}
+                height: auto;
+                max-height: 50vh;
+                display: none;
+            }
             
-            /* Specific Streamlit internal elements to hide or reset */
-            /* This targets the default Streamlit selectbox container */
-            div[data-testid="stSelectbox"] {{
-                display: none !important;
-            }}
-            /* This targets the default Streamlit button content padding */
-            .stButton > button > div {{
-                padding: 0 !important;
-            }}
-            /* Remove margins/padding from Streamlit columns if they interfere (common class for columns) */
-            .st-emotion-cache-16txt3u, .st-emotion-cache-1mngp2, .st-emotion-cache-1c99rka {{ /* common column classes */
-                padding: 0 !important;
-                margin: 0 !important;
-            }}
+            .sidebar-container.open {
+                display: flex;
+            }
+            
+            .chatbot-container {
+                width: 100%;
+            }
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
-        </style>
-        """, unsafe_allow_html=True)
+# Font Awesome icons
+def font_awesome():
+    st.markdown("""
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    """, unsafe_allow_html=True)
 
-class SidebarRenderer:
-    """Renders the sidebar UI"""
+# Helper functions
+def get_current_chat():
+    for chat in st.session_state.chat_sessions:
+        if chat['id'] == st.session_state.current_chat:
+            return chat
+    return None
+
+def add_message(chat_id, message, is_user=False):
+    for chat in st.session_state.chat_sessions:
+        if chat['id'] == chat_id:
+            chat['messages'].append({
+                'id': str(uuid.uuid4()),
+                'text': message,
+                'is_user': is_user,
+                'timestamp': datetime.now().isoformat()
+            })
+            break
+
+def new_chat_session():
+    chat_id = f"chat-{len(st.session_state.chat_sessions)+1}"
+    new_chat = {
+        'id': chat_id,
+        'title': f'New Chat {len(st.session_state.chat_sessions)+1}',
+        'icon': 'comment',
+        'messages': []
+    }
+    st.session_state.chat_sessions.append(new_chat)
+    st.session_state.current_chat = chat_id
+    st.session_state.editing_chat = None
+    st.session_state.deleting_chat = None
+
+def delete_chat(chat_id):
+    if len(st.session_state.chat_sessions) <= 1:
+        return
+    st.session_state.chat_sessions = [chat for chat in st.session_state.chat_sessions if chat['id'] != chat_id]
+    if st.session_state.current_chat == chat_id:
+        st.session_state.current_chat = st.session_state.chat_sessions[0]['id']
+    st.session_state.deleting_chat = None
+
+def rename_chat(chat_id, new_title):
+    for chat in st.session_state.chat_sessions:
+        if chat['id'] == chat_id:
+            chat['title'] = new_title
+            break
+    st.session_state.editing_chat = None
+
+# Streamlit App
+def main():
+    st.set_page_config(
+        page_title="WiseBuddy Chatbot",
+        page_icon="💬",
+        layout="centered",
+        initial_sidebar_state="collapsed"
+    )
     
-    @staticmethod
-    def render():
-        """Render sidebar components"""
-        with st.sidebar:
-            # Header with "Chats" and "X" (close) button
-            st.markdown(f"""
-                <div class="sidebar-header-custom">
-                    <span class="header-title">Chats</span>
-                    <button class="close-sidebar-btn" onclick="document.querySelector('.stSidebar').style.display='none';">X</button>
-                </div>
-            """, unsafe_allow_html=True)
-            # Note: The JS for 'X' button to close is a quick hack and might not work perfectly
-            # or be consistent across all Streamlit versions/deployments.
-            # A more robust solution involves Streamlit's internal state for sidebar visibility,
-            # which isn't directly exposed for this kind of "close" button.
-
-            # New Chat button - keep as is
-            st.button("➕ New Chat", on_click=ChatManager.create_new_chat, use_container_width=True, key="new_chat_button")
-            
-            st.markdown('<ul class="sidebar-history-list">', unsafe_allow_html=True)
-            
-            for chat in st.session_state.chat_history:
-                SidebarRenderer._render_chat_item(chat)
-                
-            st.markdown('</ul>', unsafe_allow_html=True)
-            
-            # This is where we'll render rename/delete options for the *currently selected* chat
-            SidebarRenderer._render_selected_chat_actions()
-            SidebarRenderer._handle_rename_input() # Call rename input separately
-
-    @staticmethod
-    def _render_chat_item(chat: Dict):
-        """Render individual chat item in sidebar"""
-        is_active = chat['id'] == st.session_state.current_chat_id
-        is_selected_for_action = chat['id'] == st.session_state.selected_chat_for_action # NEW
+    inject_css()
+    font_awesome()
+    
+    # Main container
+    st.markdown("""
+    <div class="main-app-container">
+        <!-- Sidebar Container -->
+        <div class="sidebar-container">
+            <div class="sidebar-header">
+                <span>Chats</span>
+            </div>
+            <div class="sidebar-history" id="sidebar-history-list">
+    """, unsafe_allow_html=True)
+    
+    # Render chat history
+    for chat in st.session_state.chat_sessions:
+        active_class = "active" if chat['id'] == st.session_state.current_chat else ""
+        editing = st.session_state.editing_chat == chat['id']
         
-        active_class = "active" if is_active else ""
-        selected_class = "selected-for-action" if is_selected_for_action else "" # NEW
-
-        # Use st.button with unsafe_allow_html for custom content
-        # The key needs to be unique for each button
-        button_html = f"""
-            <div class="chat-item-wrapper {active_class} {selected_class}">
+        if editing:
+            new_title = st.text_input(
+                "Rename chat", 
+                value=chat['title'], 
+                key=f"rename_{chat['id']}",
+                on_change=lambda cid=chat['id']: rename_chat(cid, st.session_state[f"rename_{cid}"])
+            )
+        else:
+            if st.button(chat['title'], key=f"chat_{chat['id']}"):
+                st.session_state.current_chat = chat['id']
+            
+            st.markdown(f"""
+            <div class="chat-history-item {active_class}">
                 <i class="fas fa-{chat['icon']} chat-history-icon"></i>
                 <span class="chat-title">{chat['title']}</span>
             </div>
-        """
-        
-        if st.button(
-            button_html,
-            key=f"select_chat_{chat['id']}",
-            help=f"Switch to or select '{chat['title']}'",
-            use_container_width=True,
-            unsafe_allow_html=True
-        ):
-            # Only switch current chat if it's different OR if we're selecting it for actions
-            if st.session_state.current_chat_id != chat['id']:
-                ChatManager.set_current_chat(chat['id'])
+            """, unsafe_allow_html=True)
             
-            # Always set this as the selected chat for actions on click
-            st.session_state.selected_chat_for_action = chat['id']
-            st.session_state.action_target_chat_id = None # Clear pending rename/delete for old selection
-            st.session_state.action_type = None # Clear pending rename/delete for old selection
-            st.rerun()
-
-    @staticmethod
-    def _render_selected_chat_actions():
-        """Render action buttons (Rename, Delete, Clear Selection) for the currently selected chat."""
-        if st.session_state.selected_chat_for_action:
-            # Get the chat object for the selected ID
-            chat = next(
-                (c for c in st.session_state.chat_history 
-                 if c['id'] == st.session_state.selected_chat_for_action), 
-                None
-            )
-            if chat:
-                # Only show action panel if not currently in rename mode
-                if not (st.session_state.action_type == "rename" and st.session_state.action_target_chat_id == chat['id']):
-                    st.sidebar.markdown(f'<div class="chat-action-panel">', unsafe_allow_html=True)
-                    st.sidebar.markdown(f'**Actions for:** {chat["title"]}', unsafe_allow_html=True)
-                    
-                    # Using columns for horizontal buttons
-                    col_rename, col_delete, col_cancel_action = st.sidebar.columns(3)
-                    
-                    with col_rename:
-                        if st.button("Rename", key=f"action_rename_{chat['id']}", use_container_width=True):
-                            st.session_state.action_target_chat_id = chat['id']
-                            st.session_state.action_type = "rename"
-                            st.rerun()
-                    with col_delete:
-                        if st.button("Delete", key=f"action_delete_{chat['id']}", use_container_width=True):
-                            ModalManager.show(
-                                "Confirm Deletion",
-                                f'Are you sure you want to delete "{chat["title"]}"? This action cannot be undone.',
-                                lambda: ChatManager.delete_chat(chat['id'])
-                            )
-                            # After showing modal, clear any pending rename action
-                            st.session_state.action_target_chat_id = None 
-                            st.session_state.action_type = None
-                            st.rerun()
-                    with col_cancel_action:
-                        if st.button("X", key=f"action_cancel_select_{chat['id']}", help="Clear selection", use_container_width=True):
-                            st.session_state.selected_chat_for_action = None
-                            st.session_state.action_target_chat_id = None
-                            st.session_state.action_type = None
-                            st.rerun()
-
-                    st.sidebar.markdown(f'</div>', unsafe_allow_html=True)
-
-    @staticmethod
-    def _handle_rename_input(): # Renamed from _handle_actions to be more specific
-        """Handles the display and logic for the rename input field."""
-        if not st.session_state.action_target_chat_id or st.session_state.action_type != "rename":
-            return
-            
-        chat = next(
-            (c for c in st.session_state.chat_history 
-             if c['id'] == st.session_state.action_target_chat_id), 
-            None
-        )
-        
-        if not chat:
-            return
-            
-        st.sidebar.markdown(f'<div class="rename-panel">', unsafe_allow_html=True)
-        st.sidebar.subheader(f"Rename '{chat['title']}'")
-        new_title = st.sidebar.text_input("New chat title:", value=chat['title'], 
-                                         key=f"rename_input_{chat['id']}")
-        
-        col_save, col_cancel = st.sidebar.columns(2)
-        with col_save:
-            if st.button("Save", key=f"save_rename_{chat['id']}", use_container_width=True):
-                ChatManager.rename_chat(chat['id'], new_title)
-                st.session_state.selected_chat_for_action = None # Clear selection after rename
-                st.rerun()
-        with col_cancel:
-            if st.button("Cancel", key=f"cancel_rename_{chat['id']}", use_container_width=True):
-                st.session_state.action_target_chat_id = None
-                st.session_state.action_type = None
-                st.session_state.selected_chat_for_action = None # Clear selection after cancel
-                st.rerun()
-        st.sidebar.markdown(f'</div>', unsafe_allow_html=True)
-
-class ChatInterfaceRenderer:
-    """Renders the main chat interface"""
+            col1, col2 = st.columns([1, 1])
+            if col1.button("✏️ Rename", key=f"edit_{chat['id']}"):
+                st.session_state.editing_chat = chat['id']
+            if col2.button("🗑️ Delete", key=f"del_{chat['id']}"):
+                st.session_state.deleting_chat = chat['id']
     
-    @staticmethod
-    def render():
-        """Render main chat components"""
-        st.markdown('<div class="chatbot-container">', unsafe_allow_html=True)
-        ChatInterfaceRenderer._render_header()
-        ChatInterfaceRenderer._render_messages()
-        ChatInterfaceRenderer._render_typing_indicator()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    @staticmethod
-    def _render_header():
-        """Render chat header"""
-        st.markdown(f"""
-        <div class="chatbot-header">
-            <div class="header-left">
-                <div class="avatar">WB</div>
-                <h3>WiseBuddy</h3>
+    st.markdown("""
+            </div>
+        </div>
+        
+        <!-- Chatbot Container -->
+        <div class="chatbot-container">
+            <!-- Chatbot Header -->
+            <div class="chatbot-header">
+                <div class="header-left">
+                    <div class="avatar">WB</div>
+                    <h3>WiseBuddy</h3>
+                </div>
+                <div class="header-right">
+                    <i class="fas fa-ellipsis-v menu-icon"></i>
+                </div>
+            </div>
+            
+            <!-- Chat Messages Area -->
+            <div class="chatbot-messages">
+    """, unsafe_allow_html=True)
+    
+    # Display messages for current chat
+    current_chat = get_current_chat()
+    if current_chat:
+        for msg in current_chat['messages']:
+            if msg['is_user']:
+                st.markdown(f"""
+                <div class="message-bubble user-message">
+                    <p class="m-0">{msg['text']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="message-bubble bot-message">
+                    <p class="m-0">{msg['text']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    st.markdown("""
+            </div>
+            
+            <!-- Chat Input Area -->
+            <div class="chatbot-input-area">
+                <i class="fas fa-microphone"></i>
+                <input type="text" id="user-input" placeholder="Type your message...">
+                <button class="send-button" id="send-button">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # New chat button
+    if st.button("New Chat", use_container_width=True):
+        new_chat_session()
+        st.experimental_rerun()
+    
+    # User input
+    user_input = st.text_input("Type your message", key="user_input", label_visibility="collapsed")
+    
+    # Send button functionality
+    if st.button("Send", use_container_width=True) or user_input:
+        if user_input:
+            add_message(st.session_state.current_chat, user_input, is_user=True)
+            
+            # Simulate bot response
+            with st.spinner(""):
+                time.sleep(1.5)
+                bot_response = "Thanks for your message! I'm still learning, but I'll get back to you soon."
+                add_message(st.session_state.current_chat, bot_response, is_user=False)
+            
+            st.experimental_rerun()
+    
+    # Confirmation modal for delete
+    if st.session_state.deleting_chat:
+        st.markdown("""
+        <div class="modal-overlay">
+            <div class="modal-content">
+                <h4>Confirm Deletion</h4>
+                <p>Are you sure you want to delete this chat history? This action cannot be undone.</p>
+                <div class="modal-buttons">
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        if col1.button("Cancel", use_container_width=True):
+            st.session_state.deleting_chat = None
+            st.experimental_rerun()
+        if col2.button("Delete", type="primary", use_container_width=True):
+            delete_chat(st.session_state.deleting_chat)
+            st.session_state.deleting_chat = None
+            st.experimental_rerun()
+        
+        st.markdown("""
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-    @staticmethod
-    def _render_messages():
-        """Render chat messages"""
-        messages = ChatManager.get_current_messages()
-        # Use an empty container to hold messages to allow clearing/updating
-        message_container = st.container(height=500, border=False) # Fixed height for scrollable chat area
-        with message_container:
-            for message in messages:
-                with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
-
-    @staticmethod
-    def _render_typing_indicator():
-        """Render typing indicator placeholder"""
-        # Ensure the placeholder is created only once
-        if "typing_indicator_placeholder" not in st.session_state or st.session_state.typing_indicator_placeholder is None:
-             st.session_state.typing_indicator_placeholder = st.empty()
-        # The typing indicator content is set dynamically by UserInputHandler._process_user_input
-
-class UserInputHandler:
-    """Handles user input and bot responses"""
-    
-    @staticmethod
-    def handle():
-        """Process user input and generate responses"""
-        # Place chat input outside the main chat container for consistent positioning
-        user_input = st.chat_input("Type your message...", key="main_chat_input")
-        if user_input:
-            UserInputHandler._process_user_input(user_input)
-
-    @staticmethod
-    def _process_user_input(user_input: str):
-        """Process user input and generate bot response"""
-        # Add user message
-        ChatManager.add_message("user", user_input)
-        
-        # Show typing indicator
-        if st.session_state.typing_indicator_placeholder:
-            with st.session_state.typing_indicator_placeholder.container():
-                st.markdown("""
-                <div class="typing-indicator">
-                    <div class="dot"></div>
-                    <div class="dot"></div>
-                    <div class="dot"></div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-        # Simulate processing
-        time.sleep(1.5)
-        
-        # Generate bot response
-        bot_response = f"I received: '{user_input}'. This is a simulated response. In a real implementation, I would process your query."
-        ChatManager.add_message("assistant", bot_response)
-        
-        # Clear typing indicator
-        if st.session_state.typing_indicator_placeholder:
-            st.session_state.typing_indicator_placeholder.empty()
-        st.rerun()
-
-# ================ MAIN APPLICATION ================
-def main():
-    """Main application entry point"""
-    # Initialize state and UI
-    SessionStateManager.initialize()
-    UICustomizer.inject_custom_css()
-    
-    # Setup main layout
-    st.markdown('<div class="main-app-container">', unsafe_allow_html=True)
-    
-    # Render components
-    SidebarRenderer.render()
-    ChatInterfaceRenderer.render()
-    UserInputHandler.handle()
-    
-    # Close container and render modal
-    st.markdown('</div>', unsafe_allow_html=True)
-    ModalManager.render()
-    
-    # Handle modal interactions (using Streamlit's new `st.rerun()` trigger)
-    # The `confirmModal` and `cancelModal` values are set by the JavaScript
-    # in the modal's render function via Streamlit.setComponentValue.
-    
-    if st.session_state.get('confirmModal'):
-        if st.session_state.modal_confirm_callback:
-            st.session_state.modal_confirm_callback()
-        ModalManager.hide()
-        # Reset the trigger to avoid infinite loops on re-run
-        st.session_state['confirmModal'] = False 
-        st.rerun()
-        
-    elif st.session_state.get('cancelModal'):
-        ModalManager.hide()
-        # Reset the trigger
-        st.session_state['cancelModal'] = False
-        st.rerun()
-
-# ================ ENTRY POINT ================
 if __name__ == "__main__":
-    # JavaScript message handler for modal
-    # This script facilitates communication from the modal's HTML buttons back to Streamlit
-    st.markdown("""
-    <script>
-        // Ensure this listener is only added once to avoid multiple triggers
-        if (!window.streamlitModalListenerAdded) {
-            window.addEventListener('message', (event) => {
-                if (event.data.type === 'confirmModal') {
-                    // console.log('Received confirmModal message'); // For debugging
-                    Streamlit.setComponentValue({confirmModal: true});
-                }
-                else if (event.data.type === 'cancelModal') {
-                    // console.log('Received cancelModal message'); // For debugging
-                    Streamlit.setComponentValue({cancelModal: true});
-                }
-            });
-            window.streamlitModalListenerAdded = true; // Mark listener as added
-        }
-    </script>
-    """, unsafe_allow_html=True)
-    
     main()
-
