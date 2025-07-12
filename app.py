@@ -3,15 +3,34 @@ import google.generativeai as genai
 import os
 from dotenv import load_dotenv
 import time
-
-# --- Debugging Load_dotenv ---
-# Call load_dotenv() and check its return value for debugging purposes
-dotenv_loaded_successfully = load_dotenv()
-st.sidebar.write(f"DEBUG: .env file loaded? {dotenv_loaded_successfully}")
-# --- End Debugging ---
+from pathlib import Path # Import Path for absolute path handling
 
 # --- Configuration ---
+# Determine the base directory of the script to construct the absolute path for .env
+# This makes the .env loading more robust, less dependent on where the script is run from.
+BASE_DIR = Path(__file__).resolve().parent
+
+# Construct the absolute path to the .env file
+DOTENV_PATH = BASE_DIR / ".env"
+
+# --- Debugging Load_dotenv (Updated for absolute path) ---
+dotenv_loaded_successfully = False
+if DOTENV_PATH.exists():
+    print(f"DEBUG: .env file exists at {DOTENV_PATH}") # Print to console for server logs
+    st.sidebar.write(f"DEBUG: .env file exists at `{DOTENV_PATH}`") # Print to Streamlit sidebar
+    dotenv_loaded_successfully = load_dotenv(dotenv_path=DOTENV_PATH)
+else:
+    print(f"DEBUG: .env file NOT found at {DOTENV_PATH}") # Print to console
+    st.sidebar.write(f"DEBUG: .env file NOT found at `{DOTENV_PATH}`") # Print to Streamlit sidebar
+
+st.sidebar.write(f"DEBUG: .env file loaded? **{dotenv_loaded_successfully}**")
+# --- End Debugging ---
+
+
+# Gemini Model Name
 MODEL_NAME = "gemini-1.5-flash"
+
+# WiseBuddy's Persona/System Instruction
 SYSTEM_INSTRUCTION = """
 You are WiseBuddy, a friendly, helpful, and knowledgeable AI assistant.
 Your goal is to provide concise, accurate, and relevant information.
@@ -21,6 +40,8 @@ Always prioritize user safety and ethical responses.
 """
 
 # --- API Key Management ---
+# Attempt to get API key from Streamlit Secrets (for deployment)
+# Fallback to environment variable (for local testing)
 try:
     GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY") # Use .get() for safety
     if GEMINI_API_KEY:
@@ -43,13 +64,14 @@ if not GEMINI_API_KEY:
 # --- Final check and stop if key is missing ---
 if not GEMINI_API_KEY:
     st.error("🚨 Gemini API key not found. Please set `GEMINI_API_KEY` in your environment variables or Streamlit Secrets.")
-    st.info("For local development, create a `.env` file in your project directory with `GEMINI_API_KEY='YOUR_API_KEY'`.")
+    st.info(f"For local development, ensure a `.env` file exists at `{DOTENV_PATH}` with `GEMINI_API_KEY='YOUR_API_KEY'`.")
     st.info("For Streamlit Cloud deployment, add `GEMINI_API_KEY` to your app's secrets.")
     st.stop() # Stop the app if no API key is found
 else:
     st.sidebar.success("DEBUG: Gemini API Key successfully loaded! 🎉") # Indicates success
-    # st.sidebar.write(f"DEBUG: Loaded Key Value (first 5 chars): {GEMINI_API_KEY[:5]}...") # You can uncomment this if you REALLY want to see part of the key
-    pass # No need for a message here normally
+    # For extra debugging, uncomment the line below to see a partial key value
+    # st.sidebar.write(f"DEBUG: Loaded Key Value (first 5 chars): {GEMINI_API_KEY[:5]}...")
+
 
 genai.configure(api_key=GEMINI_API_KEY)
 
