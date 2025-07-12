@@ -251,6 +251,16 @@ def load_custom_css():
             border-top-color: #007bff !important;
         }
 
+        /* Hide specific Streamlit form submit buttons */
+        /* Targets the hidden "New Chat" submit button */
+        [data-testid="stFormSubmitButton-Create New Chat Hidden"] {
+            display: none !important;
+        }
+        /* Targets all hidden "Switch to" submit buttons */
+        [data-testid^="stFormSubmitButton-Switch to "] {
+            display: none !important;
+        }
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -300,49 +310,50 @@ def render_sidebar():
     with st.sidebar:
         st.title("Chats")
 
-        # New Chat button
+        # New Chat button (custom HTML for styling, triggers hidden Streamlit form button)
         st.markdown(
-            f'<button class="new-chat-button" onclick="window.parent.document.querySelector(\'[data-testid="stForm"] button\').click();">'
+            f'<button class="new-chat-button" onclick="window.parent.document.querySelector(\'[data-testid="stFormSubmitButton-Create New Chat Hidden"]\').click();">'
             f'<span style="font-size: 1.2em;">+</span> New Chat'
             f'</button>',
             unsafe_allow_html=True
         )
         # Hidden form to trigger the new chat creation
         with st.form("new_chat_form", clear_on_submit=True):
-            st.form_submit_button("Create New Chat Hidden", on_click=create_new_chat, type="primary", help="This button is hidden and triggered by the custom HTML button above.")
+            st.form_submit_button(
+                "Create New Chat Hidden",
+                on_click=create_new_chat,
+                type="primary",
+                help="This button is hidden and triggered by the custom HTML button above."
+            )
 
         st.markdown("<div style='margin-top: 20px; border-top: 1px solid #f0f0f0;'></div>", unsafe_allow_html=True)
 
         # Conversation history list
         chat_ids = list(st.session_state[SESSION_STATE_CHATS].keys())
-        # Sort chats to put the current one first, then by creation time (reversed)
         chat_ids.sort(key=lambda x: (x != st.session_state[SESSION_STATE_CURRENT_CHAT_ID], x), reverse=False)
 
         for conv_id in chat_ids:
             title = st.session_state[SESSION_STATE_CHATS][conv_id]["title"]
             is_active = conv_id == st.session_state[SESSION_STATE_CURRENT_CHAT_ID]
-            icon = "💬" if not is_active else "✨" # Different icon for active chat
+            icon = "💬" if not is_active else "✨"
 
-            st.markdown(
-                f'<div class="conversation-item {"active" if is_active else ""}" '
-                f'onclick="window.parent.document.querySelector(\'[data-chat-id="{conv_id}"]\').click();">'
-                f'<span class="conversation-icon">{icon}</span> {title}'
-                '</div>',
-                unsafe_allow_html=True
-            )
-            # Hidden button to trigger Streamlit's callback
-            st.button(
-                "Switch to " + title,
-                key=f"switch_chat_{conv_id}",
-                on_click=switch_chat,
-                args=(conv_id,),
-                help=f"Switch to chat: {title}",
-                use_container_width=True,
-                # Hide the actual Streamlit button using CSS
-                # This button is clicked via the custom JS in the markdown above
-                # Data attribute added for JS targeting
-                unsafe_allow_html=True
-            ).add_attribute("data-chat-id", conv_id)
+            # Each conversation item will be a form to trigger the switch
+            with st.form(f"chat_switch_form_{conv_id}", clear_on_submit=True):
+                st.markdown(
+                    f'<div class="conversation-item {"active" if is_active else ""}" '
+                    f'onclick="window.parent.document.querySelector(\'[data-testid^=\"stFormSubmitButton\"]\', this.parentNode).click();">' # Target submit button within THIS form
+                    f'<span class="conversation-icon">{icon}</span> {title}'
+                    '</div>',
+                    unsafe_allow_html=True
+                )
+                # Hidden submit button for this form
+                st.form_submit_button(
+                    f"Switch to {title} (Hidden)", # The label is part of the data-testid
+                    key=f"switch_chat_submit_{conv_id}", # Unique key for the submit button
+                    on_click=switch_chat,
+                    args=(conv_id,),
+                    # No need for unsafe_allow_html=True here, as it's a standard button
+                )
 
 
         # Fixed profile section at bottom
