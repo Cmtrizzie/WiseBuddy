@@ -190,7 +190,7 @@ col1, col2 = st.columns([1, 4])
 with col1:
     if st.button("Toggle Dark Mode 🌙" if not st.session_state.dark_mode else "Toggle Light Mode ☀️"):
         st.session_state.dark_mode = not st.session_state.dark_mode
-        st.experimental_rerun()
+        st.rerun() # CHANGED FROM st.experimental_rerun()
 st.sidebar.write("DEBUG: 12. Dark mode toggle rendered.")
 print("DEBUG: 12. Dark mode toggle rendered.")
 
@@ -256,7 +256,7 @@ with col2:
     if st.button("✨ Start a New Chat", help="Clear current conversation and start fresh"):
         st.session_state.messages = []
         st.session_state.chat_session = model.start_chat(history=[])
-        st.experimental_rerun()
+        st.rerun() # CHANGED FROM st.experimental_rerun()
 st.sidebar.write("DEBUG: 14. New chat button rendered.")
 print("DEBUG: 14. New chat button rendered.")
 
