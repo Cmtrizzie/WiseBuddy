@@ -272,42 +272,47 @@ print("DEBUG: 16. Finished displaying chat messages.")
 
 
 # --- User Input and Model Response Logic ---
-st.sidebar.write("DEBUG: 17. Checking for user input (st.chat_input).")
-print("DEBUG: 17. Checking for user input (st.chat_input).")
-if prompt := st.chat_input("Ask WiseBuddy anything...", key="chat_input"):
-    st.sidebar.write("DEBUG: 18. User input received.")
-    print("DEBUG: 18. User input received.")
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    st.sidebar.write("DEBUG: 19. User message added and displayed.")
-    print("DEBUG: 19. User message added and displayed.")
+# DEBUG: This entire section is commented out to isolate the problem.
+# If the app renders now, the issue is within this block.
+# If it's still blank, the issue is earlier in the script.
 
-    with st.chat_message("model"):
-        with st.status("WiseBuddy is thinking...", expanded=False) as status_box:
-            status_box.write("Connecting to Gemini...")
-            st.sidebar.write("DEBUG: 20. Calling process_gemini_response.")
-            print("DEBUG: 20. Calling process_gemini_response.")
-            placeholder = st.empty()
-            full_response_container = []
+# st.sidebar.write("DEBUG: 17. Checking for user input (st.chat_input).")
+# print("DEBUG: 17. Checking for user input (st.chat_input).")
+# if prompt := st.chat_input("Ask WiseBuddy anything...", key="chat_input"):
+#     st.sidebar.write("DEBUG: 18. User input received.")
+#     print("DEBUG: 18. User input received.")
+#     st.session_state.messages.append({"role": "user", "content": prompt})
+#     with st.chat_message("user"):
+#         st.markdown(prompt)
+#     st.sidebar.write("DEBUG: 19. User message added and displayed.")
+#     print("DEBUG: 19. User message added and displayed.")
 
-            for text_chunk in process_gemini_response(prompt):
-                full_response_container.append(text_chunk)
-                placeholder.markdown("".join(full_response_container) + "▌")
-            
-            final_response = "".join(full_response_container)
-            placeholder.markdown(final_response)
+#     with st.chat_message("model"):
+#         with st.status("WiseBuddy is thinking...", expanded=False) as status_box:
+#             status_box.write("Connecting to Gemini...")
+#             st.sidebar.write("DEBUG: 20. Calling process_gemini_response.")
+#             print("DEBUG: 20. Calling process_gemini_response.")
+#             placeholder = st.empty()
+#             full_response_container = []
 
-            if "Oops!" not in final_response and "cannot respond" not in final_response and "Error" not in final_response:
-                 status_box.update(label="WiseBuddy replied!", state="complete", expanded=False)
-            else:
-                 status_box.update(label="WiseBuddy encountered an issue.", state="error", expanded=False)
-    st.sidebar.write("DEBUG: 21. Model response displayed and status updated.")
-    print("DEBUG: 21. Model response displayed and status updated.")
+#             for text_chunk in process_gemini_response(prompt):
+#                 full_response_container.append(text_chunk)
+#                 placeholder.markdown("".join(full_response_container) + "▌")
 
-    st.session_state.messages.append({"role": "model", "content": final_response})
-    st.sidebar.write("DEBUG: 22. Model response added to session state.")
-    print("DEBUG: 22. Model response added to session state.")
+#             final_response = "".join(full_response_container)
+#             placeholder.markdown(final_response)
+
+#             if "Oops!" not in final_response and "cannot respond" not in final_response and "Error" not in final_response:
+#                  status_box.update(label="WiseBuddy replied!", state="complete", expanded=False)
+#             else:
+#                  status_box.update(label="WiseBuddy encountered an issue.", state="error", expanded=False)
+#     st.sidebar.write("DEBUG: 21. Model response displayed and status updated.")
+#     print("DEBUG: 21. Model response displayed and status updated.")
+
+#     st.session_state.messages.append({"role": "model", "content": final_response})
+#     st.sidebar.write("DEBUG: 22. Model response added to session state.")
+#     print("DEBUG: 22. Model response added to session state.")
 
 st.sidebar.write("DEBUG: 23. End of script execution (main loop).")
 print("DEBUG: 23. End of script execution (main loop).")
+
