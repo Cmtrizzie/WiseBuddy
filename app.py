@@ -1,12 +1,11 @@
 import streamlit as st
 import uuid
 import google.generativeai as genai
-from streamlit_emoji_picker import emoji_picker
 
 # ---- CONFIG ---- #
 st.set_page_config(page_title="WiseBuddy 🤖", layout="wide")
 
-# ---- SET GEMINI API ---- #
+# ---- GEMINI API SETUP ---- #
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel("gemini-pro")
 
@@ -30,12 +29,13 @@ def rename_chat(chat_id, new_title):
 
 def generate_reply_with_gemini(user_message):
     try:
-        response = model.generate_content(user_message)
+        prompt = f"{user_message}\n\nRespond in a helpful and friendly way. Use emojis where appropriate!"
+        response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
-        return f"⚠️ Error: {str(e)}"
+        return f"⚠️ Gemini error: {str(e)}"
 
-# Ensure at least one chat
+# ---- Ensure At Least One Chat Exists ---- #
 if not st.session_state['chat_sessions']:
     new_chat()
 
@@ -54,7 +54,7 @@ active_chat = st.session_state['chat_sessions'][active_chat_id]
 
 st.markdown("<h1 style='margin-top:-10px;'>🤖 WiseBuddy</h1>", unsafe_allow_html=True)
 
-# ---- DISPLAY MESSAGES ---- #
+# ---- DISPLAY CHAT MESSAGES ---- #
 bubble_style = """display: inline-block; padding: 10px 15px; border-radius: 15px;
                   margin: 8px 0; max-width: 75%; font-size: 16px; line-height: 1.5;"""
 
@@ -70,7 +70,7 @@ with message_placeholder.container():
                 f"<div style='{bubble_style} background:#f1f0f0; color:#000; float:left; clear:both;'>{msg['content']}</div>",
                 unsafe_allow_html=True)
 
-# ---- HANDLE SEND ---- #
+# ---- SEND HANDLER ---- #
 def handle_send():
     user_input = st.session_state.input_text.strip()
     if user_input:
@@ -84,7 +84,7 @@ def handle_send():
 
     st.session_state.input_text = ''
 
-# ---- EMOJI SUPPORT + INPUT FORM ---- #
+# ---- STYLE FOR WHATSAPP-LIKE INPUT ---- #
 st.markdown("""
 <style>
 .input-container {
@@ -114,18 +114,16 @@ button.send-btn {
 </style>
 """, unsafe_allow_html=True)
 
+# ---- MESSAGE INPUT BAR ---- #
 with st.form(key="chat_form", clear_on_submit=True):
     col1, col2 = st.columns([10, 1])
     with col1:
         user_input = st.text_input("Type a message...", key="input_text", label_visibility="collapsed")
-        emoji = emoji_picker("😊 Pick emoji", key="emoji_picker")
-        if emoji:
-            st.session_state.input_text += emoji
     with col2:
         submitted = st.form_submit_button("🛩️", use_container_width=True)
 
 if submitted:
     handle_send()
 
-# ---- END SCROLL ---- #
+# ---- AUTO SCROLL TARGET ---- #
 st.markdown("<div id='end-of-chat'></div>", unsafe_allow_html=True)
