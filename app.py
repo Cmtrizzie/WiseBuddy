@@ -58,12 +58,12 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
     display: none !important;
 }
 
-/* Custom Header Styling */
+/* Custom Header Styling - ENHANCED */
 .custom-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 20px;
+    padding: 10px 15px; /* Slightly less vertical padding, more horizontal */
     background-color: #000000;
     position: sticky; /* Keeps the header at the top when scrolling */
     top: 0;
@@ -71,18 +71,29 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
     color: white;
     border-bottom: 1px solid #1a1a1a; /* Subtle border for separation */
 }
+.header-item { /* New class for clickable header items */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px; /* Increased padding for larger clickable area */
+    border-radius: 10px; /* Slight rounding */
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    min-width: 44px; /* Ensure minimum touch target size */
+    min-height: 44px; /* Ensure minimum touch target size */
+    box-sizing: border-box; /* Include padding in width/height */
+}
+.header-item:hover {
+    background-color: #1a1a1a; /* Subtle background on hover */
+    color: #cccccc;
+}
 .header-icon {
     font-size: 24px;
-    cursor: pointer;
-    padding: 5px;
-    transition: color 0.2s ease;
-}
-.header-icon:hover {
-    color: #999999; /* Lighten on hover */
 }
 .header-title {
     font-size: 18px;
     font-weight: 500;
+    white-space: nowrap; /* Prevent "New chat" from wrapping */
 }
 
 /* Chat Message Container */
@@ -228,11 +239,18 @@ div.stForm { display: none; }
 """, unsafe_allow_html=True)
 
 # --- CUSTOM HEADER --- #
+# Wrapped header elements in a new 'header-item' class for extended touch area
 st.markdown("""
 <div class="custom-header">
-    <div class="header-icon">☰</div>
-    <div class="header-title">New chat</div>
-    <div class="header-icon">+</div>
+    <div class="header-item">
+        <div class="header-icon">☰</div>
+    </div>
+    <div class="header-item">
+        <div class="header-title">New chat</div>
+    </div>
+    <div class="header-item">
+        <div class="header-icon">+</div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -254,7 +272,6 @@ else:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- ST.CHAT_INPUT FOR MESSAGING --- #
-# This replaces the previous st.form and st.text_input setup
 user_input = st.chat_input("Type your message...")
 
 # --- HANDLE SEND --- #
