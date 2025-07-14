@@ -142,106 +142,88 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
     color: #aaaaaa;
 }
 
-/* --- Fixed Input Bar Styling (Creative Enhancements) --- */
-.input-box {
-    position: fixed; /* Keep it fixed at the bottom */
+/* --- ST.CHAT_INPUT Styling (Crucial for the correct input bar) --- */
+/* This targets the container for st.chat_input */
+[data-testid="stChatInput"] {
+    position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    background: #000000; /* Match body background */
-    padding: 15px 20px; /* Padding around the input field */
-    border-top: 1px solid #1a1a1a; /* Subtle top border */
+    background-color: #000000; /* Match body background */
+    padding: 15px 20px;
+    border-top: 1px solid #1a1a1a;
     z-index: 1000;
-    display: flex;
-    justify-content: center; /* Center the content */
-    align-items: center; /* Vertically center content */
     box-shadow: 0 -2px 10px rgba(0,0,0,0.5); /* Shadow for lift-off effect */
+    display: flex; /* Ensure its content is centered */
+    justify-content: center; /* Center the input field itself */
+    align-items: center;
 }
 
-.input-field-wrapper {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    max-width: 760px; /* Max width for the input field to match chat container */
+/* Target the actual input field within st.chat_input */
+[data-testid="stChatInput"] > div > label + div { /* Selects the div containing the text input and button */
     background: #1f1f1f; /* Background for the input area itself */
     border-radius: 30px; /* Highly rounded corners */
     border: 1px solid #333333; /* A more prominent, but subtle border */
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.3); /* Inner shadow for depth */
+    max-width: 760px; /* Max width for the input field to match chat container */
+    width: 100%; /* Take full width within its flex container */
+    padding: 0; /* Remove internal padding from streamlit's default */
 }
-.input-field-wrapper:focus-within { /* Style when input is focused */
+
+/* Focus style for the input field */
+[data-testid="stChatInput"] > div > label + div:focus-within {
     border-color: #2563eb; /* Blue border on focus */
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 0 3px rgba(37, 99, 235, 0.3); /* Outer glow */
 }
 
-input[type="text"] {
-    flex-grow: 1; /* Allows the text input to take available space */
-    background: transparent; /* No background for the input element itself */
-    border: none; /* No border */
-    outline: none; /* No outline on focus */
-    color: white; /* Text color */
-    font-size: 16px;
-    padding: 12px 15px; /* More padding inside the text input */
-    line-height: 1.5; /* Ensure good line height */
-}
-input[type="text"]::placeholder {
-    color: #888; /* Placeholder text color */
+/* Target the text input itself */
+[data-testid="stChatInput"] textarea {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    color: white !important;
+    font-size: 16px !important;
+    padding: 12px 15px !important; /* More padding inside the text input */
+    line-height: 1.5 !important;
+    resize: none !important; /* Prevent manual resizing */
 }
 
-/* Styling for the Streamlit send button */
-.stButton > button[kind="primary"] {
-    background-color: #2563eb; /* Blue send button */
-    color: white;
-    border: none;
-    border-radius: 50%; /* Circular button */
-    width: 44px; /* Slightly larger button */
-    height: 44px; /* Slightly larger button */
-    font-size: 20px; /* Larger icon */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-left: 8px; /* Space between input and button */
-    padding: 0;
-    cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.1s ease;
-    flex-shrink: 0; /* Prevent shrinking */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.4); /* Shadow for the button */
-}
-.stButton > button[kind="primary"]:hover {
-    background-color: #1a56c7; /* Darker blue on hover */
-    transform: translateY(-1px); /* Slight lift effect */
-}
-.stButton > button[kind="primary"]:active {
-    transform: translateY(0); /* Press effect */
+/* Placeholder color */
+[data-testid="stChatInput"] textarea::placeholder {
+    color: #888 !important;
 }
 
-/* Hide the Streamlit default button styling for the form submit button */
-div.stForm {
-    width: 100%;
-    margin-top: 0;
-    margin-bottom: 0;
-    display: flex;
-    justify-content: center;
+/* Target the send button within st.chat_input */
+[data-testid="stChatInput"] button {
+    background-color: #2563eb !important; /* Blue send button */
+    color: white !important;
+    border: none !important;
+    border-radius: 50% !important; /* Circular button */
+    width: 44px !important; /* Slightly larger button */
+    height: 44px !important; /* Slightly larger button */
+    min-width: 44px !important; /* Prevent it from shrinking */
+    font-size: 20px !important; /* Larger icon */
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    margin-left: 8px !important; /* Space between input and button */
+    padding: 0 !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s ease, transform 0.1s ease !important;
+    flex-shrink: 0 !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4) !important; /* Shadow for the button */
 }
-div.stForm > div {
-    display: flex;
-    flex-direction: row; /* Ensure input and button are side-by-side */
-    align-items: center;
-    width: 100%;
-    max-width: 760px; /* This ensures the form itself aligns with the max-width of input-field-wrapper */
+[data-testid="stChatInput"] button:hover {
+    background-color: #1a56c7 !important; /* Darker blue on hover */
+    transform: translateY(-1px) !important; /* Slight lift effect */
+}
+[data-testid="stChatInput"] button:active {
+    transform: translateY(0) !important; /* Press effect */
 }
 
-::-webkit-scrollbar {
-    width: 5px;
-}
-::-webkit-scrollbar-thumb {
-    background: #333;
-    border-radius: 10px;
-}
-::-webkit-scrollbar-track {
-    background: #111;
-}
-
+/* Hide Streamlit's default elements for the form to ensure st.chat_input takes over */
+div.stForm { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -271,24 +253,12 @@ else:
         st.markdown(f"<div class='message {role}'>{msg['content']}</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- INPUT BAR (Fixed at bottom with creative enhancements) --- #
-st.markdown('<div class="input-box">', unsafe_allow_html=True)
-with st.form("chat_form", clear_on_submit=True):
-    # This column layout will be within the input-field-wrapper
-    col1, col2 = st.columns([10, 1])
-    with col1:
-        # Wrap input in a div for consistent styling and to apply max-width
-        st.markdown('<div class="input-field-wrapper">', unsafe_allow_html=True)
-        user_input = st.text_input("Message", "", label_visibility="collapsed", key="input_text", placeholder="Type your message...")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col2:
-        # The Streamlit button will inherit the custom styling defined in the <style> block
-        send = st.form_submit_button("➤", help="Send message", type="primary") # type="primary" helps target it with CSS
-st.markdown("</div>", unsafe_allow_html=True)
-
+# --- ST.CHAT_INPUT FOR MESSAGING --- #
+# This replaces the previous st.form and st.text_input setup
+user_input = st.chat_input("Type your message...")
 
 # --- HANDLE SEND --- #
-if send and user_input.strip():
+if user_input: # st.chat_input returns the message if entered, None otherwise
     active_chat["messages"].append({"role": "user", "content": user_input.strip()})
     response = generate_reply(user_input.strip())
     active_chat["messages"].append({"role": "assistant", "content": response})
