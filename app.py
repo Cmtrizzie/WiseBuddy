@@ -68,7 +68,7 @@ with st.sidebar:
 active_chat_id = st.session_state.active_chat
 active_chat = st.session_state.chat_sessions[active_chat_id]
 
-# ---- PAGE TITLE ---- #
+# ---- CUSTOM STYLING ---- #
 st.markdown("""
     <style>
         .main-title {
@@ -78,10 +78,10 @@ st.markdown("""
             margin-bottom: 15px;
         }
         .chat-window {
-            height: 73vh;
+            max-height: calc(100vh - 140px);
             overflow-y: auto;
             padding-right: 10px;
-            padding-bottom: 80px;
+            padding-bottom: 110px;
         }
         .chat-input-container {
             position: fixed;
@@ -92,6 +92,8 @@ st.markdown("""
             background: white;
             border-top: 1px solid #eee;
             z-index: 999;
+            max-width: 720px;
+            margin: 0 auto;
         }
         input.chatbox {
             width: 100%;
@@ -99,16 +101,22 @@ st.markdown("""
             font-size: 16px;
             border-radius: 25px;
             border: 1px solid #ccc;
+            background: white !important;
+            color: black;
         }
     </style>
-    <div class="main-title">🤖 WiseBuddy</div>
 """, unsafe_allow_html=True)
 
-# ---- DISPLAY CHAT ---- #
+# ---- TITLE ---- #
+st.markdown("<div class='main-title'>🤖 WiseBuddy</div>", unsafe_allow_html=True)
+
+# ---- CHAT DISPLAY ---- #
 st.markdown("<div class='chat-window'>", unsafe_allow_html=True)
+
 bubble_style = """display:inline-block;padding:10px 15px;border-radius:15px;
                   margin:6px 0;max-width:75%;font-size:16px;line-height:1.5;
                   box-shadow:0 1px 3px rgba(0,0,0,0.1);"""
+
 for msg in active_chat["messages"]:
     if msg["role"] == "user":
         st.markdown(
@@ -118,6 +126,16 @@ for msg in active_chat["messages"]:
         st.markdown(
             f"<div style='{bubble_style} background:#f1f0f0; color:#000; float:left; clear:both;'>{msg['content']}</div>",
             unsafe_allow_html=True)
+
+# ---- AUTO-SCROLL TARGET ---- #
+st.markdown("<div id='scroll-to-bottom'></div>", unsafe_allow_html=True)
+st.markdown("""
+    <script>
+        const chatBox = window.parent.document.querySelector('body');
+        chatBox.scrollTo({top: chatBox.scrollHeight, behavior: 'smooth'});
+    </script>
+""", unsafe_allow_html=True)
+
 st.markdown("</div>", unsafe_allow_html=True)
 
 # ---- FIXED INPUT FIELD ---- #
