@@ -53,9 +53,27 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
     font-family: 'Inter', sans-serif; /* Using Inter font for a modern look */
 }
 
-/* Hide Streamlit's default header and footer elements */
-[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] {
+/* --- HIDE ALL DEFAULT STREAMLIT HEADER ELEMENTS - MORE AGGRESSIVE --- */
+/* Target specific data-testids used by Streamlit for its header/toolbar */
+[data-testid="stHeader"],
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stSidebarHeader"], /* In case a sidebar header is showing */
+/* Target the actual header HTML element within the app view */
+[data-testid="stAppViewContainer"] > header,
+.stApp > header {
     display: none !important;
+    visibility: hidden !important; /* Extra measure to ensure it's gone */
+    height: 0px !important; /* Collapse its height */
+    padding: 0px !important; /* Remove any padding */
+    margin: 0px !important; /* Remove any margin */
+}
+
+/* Ensure the main content block starts at the very top */
+.block-container {
+    padding-top: 0px !important;
+    padding-left: 0px !important;
+    padding-right: 0px !important;
 }
 
 /* Custom Header Styling - ENHANCED */
@@ -233,7 +251,7 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
     transform: translateY(0) !important; /* Press effect */
 }
 
-/* Hide Streamlit's default elements for the form to ensure st.chat_input takes over */
+/* Ensure no default Streamlit forms are interfering if not explicitly used */
 div.stForm { display: none; }
 </style>
 """, unsafe_allow_html=True)
