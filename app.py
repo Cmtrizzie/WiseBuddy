@@ -22,7 +22,7 @@ def rename_chat(chat_id, new_title):
     st.session_state['chat_sessions'][chat_id]['title'] = new_title
 
 def generate_reply(user_message):
-    return f"🧠 WiseBuddy says: {user_message[::-1]}"  # fun demo reply
+    return f"🧠 WiseBuddy says: {user_message[::-1]}"  # Fun reverse reply for demo
 
 # Ensure one chat exists
 if not st.session_state['chat_sessions']:
@@ -37,6 +37,7 @@ for chat_id, chat in st.session_state['chat_sessions'].items():
 if st.sidebar.button("➕ New Chat"):
     new_chat()
 
+# ------------------ Active Chat ------------------ #
 active_chat_id = st.session_state['active_chat']
 active_chat = st.session_state['chat_sessions'][active_chat_id]
 
@@ -62,16 +63,16 @@ def handle_send():
         active_chat['messages'].append({'role': 'user', 'content': user_input})
         bot_reply = generate_reply(user_input)
         active_chat['messages'].append({'role': 'assistant', 'content': bot_reply})
-        
-        # Auto rename
+
+        # Auto rename after 3 user messages
         user_msgs = [m for m in active_chat['messages'] if m['role'] == 'user']
         if len(user_msgs) == 3:
             rename_chat(active_chat_id, user_msgs[0]['content'][:30] + "...")
-    
-    st.session_state.input_text = ''
-    st.experimental_rerun()
 
-# ------------------ Input & Button ------------------ #
+    st.session_state.input_text = ''
+    st.rerun()
+
+# ------------------ Input & Send Button ------------------ #
 col1, col2 = st.columns([10, 1])
 with col1:
     st.text_input("Ask me anything...", key="input_text", label_visibility="collapsed", on_change=handle_send)
