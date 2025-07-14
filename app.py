@@ -79,4 +79,4 @@ if send and user_input.strip():
     st.experimental_rerun()
 
 # ------------------------ Auto Scroll ------------------------ #
-st.markdown(\"<script>window.scrollTo(0, document.body.scrollHeight);</script>\", unsafe_allow_html=True)
+st.markdown("""<h1 style='margin-top:-10px;'>🤖 WiseBuddy</h1>""", unsafe_allow_html=True)
