@@ -46,115 +46,132 @@ active_chat = st.session_state.chat_sessions[active_id]
 # --- STYLING --- #
 st.markdown("""
 <style>
+/* Base styling for the entire app */
 body, .main, .block-container, [data-testid="stAppViewContainer"] {
-    background-color: #000000 !important; /* Deeper black for consistency */
+    background-color: #000000 !important; /* Deep black background */
     color: white !important;
+    font-family: 'Inter', sans-serif; /* Using Inter font for a modern look */
 }
 
-/* Hide Streamlit's default header and footer */
-[data-testid="stHeader"] {
-    display: none !important;
-}
-[data-testid="stToolbar"] {
-    display: none !important;
-}
-[data-testid="stDecoration"] {
+/* Hide Streamlit's default header and footer elements */
+[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] {
     display: none !important;
 }
 
-/* Custom Header (as per previous iteration, kept for consistency) */
+/* Custom Header Styling */
 .custom-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 15px 20px;
     background-color: #000000;
-    position: sticky;
+    position: sticky; /* Keeps the header at the top when scrolling */
     top: 0;
     z-index: 1000;
     color: white;
+    border-bottom: 1px solid #1a1a1a; /* Subtle border for separation */
 }
 .header-icon {
     font-size: 24px;
     cursor: pointer;
     padding: 5px;
+    transition: color 0.2s ease;
+}
+.header-icon:hover {
+    color: #999999; /* Lighten on hover */
 }
 .header-title {
     font-size: 18px;
     font-weight: 500;
 }
 
+/* Chat Message Container */
 .chat-container {
-    padding-bottom: 120px; /* Space for the fixed input bar */
-    padding-top: 20px; /* Give some space below the header */
-    max-width: 800px; /* Limit chat width for better readability */
+    padding-bottom: 120px; /* Space for the fixed input bar at the bottom */
+    padding-top: 20px; /* Space below the header */
+    max-width: 800px; /* Max width for readability on large screens */
     margin: 0 auto; /* Center the chat container */
+    padding-left: 15px; /* Padding for mobile */
+    padding-right: 15px; /* Padding for mobile */
 }
 .message {
-    max-width: 70%; /* Slightly narrower message bubbles */
-    padding: 12px 16px;
-    border-radius: 20px;
+    max-width: 75%; /* Slightly wider message bubbles */
+    padding: 12px 18px; /* More padding inside bubbles */
+    border-radius: 22px; /* Slightly more rounded corners */
     margin: 10px 0;
     font-size: 16px;
     line-height: 1.5;
     word-wrap: break-word;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2); /* Subtle shadow for depth */
 }
 .user {
-    background-color: #1e1e1e; /* Darker grey for user messages */
+    background-color: #1a1a1a; /* Darker grey for user messages */
     margin-left: auto;
     text-align: right;
-    border-bottom-right-radius: 5px; /* Slightly less round on one corner */
+    border-bottom-right-radius: 8px; /* Asymmetrical rounding */
 }
 .bot {
-    background-color: #2b2b2b; /* Slightly lighter grey for bot messages */
+    background-color: #282828; /* Slightly lighter grey for bot messages */
     margin-right: auto;
     text-align: left;
-    border-bottom-left-radius: 5px; /* Slightly less round on one corner */
+    border-bottom-left-radius: 8px; /* Asymmetrical rounding */
 }
 
+/* Welcome Message Styling */
 .welcome-message {
     text-align: center;
-    margin-top: 25vh;
+    margin-top: 25vh; /* Vertically center initially */
     color: gray;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    padding: 0 20px; /* Ensure padding on small screens */
+}
+.welcome-message img {
+    filter: drop-shadow(0 0 10px rgba(0, 150, 255, 0.4)); /* Glow effect for the emoji */
 }
 .welcome-message h3 {
     color: white;
     margin-top: 15px;
     margin-bottom: 5px;
-    font-size: 24px;
+    font-size: 26px; /* Slightly larger heading */
 }
 .welcome-message p {
-    font-size: 16px;
-    color: #888;
+    font-size: 17px; /* Slightly larger text */
+    color: #aaaaaa;
 }
 
-/* --- Input Box Styling --- */
+/* --- Fixed Input Bar Styling (Creative Enhancements) --- */
 .input-box {
-    position: fixed;
+    position: fixed; /* Keep it fixed at the bottom */
     bottom: 0;
     left: 0;
     right: 0;
-    background: #0d0d0d; /* Dark background for the fixed bar */
-    padding: 16px 20px; /* Padding around the input field */
-    border-top: 1px solid #222; /* Subtle top border */
+    background: #000000; /* Match body background */
+    padding: 15px 20px; /* Padding around the input field */
+    border-top: 1px solid #1a1a1a; /* Subtle top border */
     z-index: 1000;
     display: flex;
-    justify-content: center; /* Center the content of the input bar */
+    justify-content: center; /* Center the content */
     align-items: center; /* Vertically center content */
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.5); /* Shadow for lift-off effect */
 }
 
-.input-field-wrapper { /* New wrapper for the input and button to control width */
+.input-field-wrapper {
     display: flex;
     align-items: center;
     width: 100%;
     max-width: 760px; /* Max width for the input field to match chat container */
     background: #1f1f1f; /* Background for the input area itself */
-    border-radius: 30px; /* Rounded corners for the input field */
-    padding: 8px 12px; /* Padding inside the input wrapper */
+    border-radius: 30px; /* Highly rounded corners */
+    border: 1px solid #333333; /* A more prominent, but subtle border */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3); /* Inner shadow for depth */
+}
+.input-field-wrapper:focus-within { /* Style when input is focused */
+    border-color: #2563eb; /* Blue border on focus */
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 0 3px rgba(37, 99, 235, 0.3); /* Outer glow */
 }
 
 input[type="text"] {
@@ -164,34 +181,54 @@ input[type="text"] {
     outline: none; /* No outline on focus */
     color: white; /* Text color */
     font-size: 16px;
-    padding: 0 10px; /* Padding inside the text input for spacing */
+    padding: 12px 15px; /* More padding inside the text input */
+    line-height: 1.5; /* Ensure good line height */
 }
 input[type="text"]::placeholder {
     color: #888; /* Placeholder text color */
 }
 
-.send-button {
+/* Styling for the Streamlit send button */
+.stButton > button[kind="primary"] {
     background-color: #2563eb; /* Blue send button */
     color: white;
     border: none;
     border-radius: 50%; /* Circular button */
-    width: 42px;
-    height: 42px;
-    font-size: 18px;
-    margin-left: 10px; /* Space between input and button */
-    cursor: pointer;
+    width: 44px; /* Slightly larger button */
+    height: 44px; /* Slightly larger button */
+    font-size: 20px; /* Larger icon */
     display: flex;
     justify-content: center;
     align-items: center;
+    margin-left: 8px; /* Space between input and button */
+    padding: 0;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
     flex-shrink: 0; /* Prevent shrinking */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4); /* Shadow for the button */
+}
+.stButton > button[kind="primary"]:hover {
+    background-color: #1a56c7; /* Darker blue on hover */
+    transform: translateY(-1px); /* Slight lift effect */
+}
+.stButton > button[kind="primary"]:active {
+    transform: translateY(0); /* Press effect */
 }
 
-/* Remove styling for the previously added custom buttons, as they are gone */
-.custom-button-container {
-    display: none; /* Hide this container */
+/* Hide the Streamlit default button styling for the form submit button */
+div.stForm {
+    width: 100%;
+    margin-top: 0;
+    margin-bottom: 0;
+    display: flex;
+    justify-content: center;
 }
-.stButton>button {
-    display: none; /* Hide specific streamlit buttons that might inherit this style */
+div.stForm > div {
+    display: flex;
+    flex-direction: row; /* Ensure input and button are side-by-side */
+    align-items: center;
+    width: 100%;
+    max-width: 760px; /* This ensures the form itself aligns with the max-width of input-field-wrapper */
 }
 
 ::-webkit-scrollbar {
@@ -205,21 +242,6 @@ input[type="text"]::placeholder {
     background: #111;
 }
 
-/* Adjust Streamlit's internal form rendering for better layout */
-div.stForm {
-    width: 100%;
-    margin-top: 0;
-    margin-bottom: 0;
-    display: flex;
-    justify-content: center; /* Center the form itself within the fixed container */
-}
-div.stForm > div {
-    display: flex;
-    flex-direction: row; /* Ensure input and button are side-by-side */
-    align-items: center;
-    width: 100%;
-    max-width: 760px; /* This ensures the form itself aligns with the max-width of input-field-wrapper */
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -249,7 +271,7 @@ else:
         st.markdown(f"<div class='message {role}'>{msg['content']}</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- INPUT BAR (Fixed at bottom) --- #
+# --- INPUT BAR (Fixed at bottom with creative enhancements) --- #
 st.markdown('<div class="input-box">', unsafe_allow_html=True)
 with st.form("chat_form", clear_on_submit=True):
     # This column layout will be within the input-field-wrapper
@@ -260,29 +282,8 @@ with st.form("chat_form", clear_on_submit=True):
         user_input = st.text_input("Message", "", label_visibility="collapsed", key="input_text", placeholder="Type your message...")
         st.markdown('</div>', unsafe_allow_html=True)
     with col2:
-        send = st.form_submit_button("➤", help="Send message")
-        st.markdown("""
-            <style>
-                /* Specific styling for the send button */
-                .stButton > button[kind="primary"] {
-                    background-color: #2563eb;
-                    color: white;
-                    border: none;
-                    border-radius: 50%;
-                    width: 42px;
-                    height: 42px;
-                    font-size: 18px;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    margin-left: 0; /* Adjust margin if needed */
-                    padding: 0;
-                }
-                .stButton > button[kind="primary"]:hover {
-                    background-color: #1a56c7;
-                }
-            </style>
-        """, unsafe_allow_html=True)
+        # The Streamlit button will inherit the custom styling defined in the <style> block
+        send = st.form_submit_button("➤", help="Send message", type="primary") # type="primary" helps target it with CSS
 st.markdown("</div>", unsafe_allow_html=True)
 
 
