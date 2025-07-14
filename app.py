@@ -18,7 +18,6 @@ if "chat_sessions" not in st.session_state:
 if "response_cache" not in st.session_state:
     st.session_state.response_cache = {}
 
-# ---- Chat management ---- #
 def new_chat():
     chat_id = str(uuid.uuid4())
     st.session_state.chat_sessions[chat_id] = {
@@ -34,10 +33,9 @@ def hash_prompt(text):
     return hashlib.sha256(text.encode()).hexdigest()
 
 def generate_reply_with_gemini(user_message):
-    prompt = f"{user_message}\n\nRespond helpfully, clearly, and use emojis where relevant!"
+    prompt = f"{user_message}\n\nRespond helpfully and clearly. Use emojis where appropriate!"
     prompt_hash = hash_prompt(prompt)
 
-    # Return from cache if already generated
     if prompt_hash in st.session_state.response_cache:
         return st.session_state.response_cache[prompt_hash]
 
@@ -53,40 +51,64 @@ def generate_reply_with_gemini(user_message):
             return "🚫 API quota limit reached. Please wait a bit and try again!"
         return f"⚠️ Gemini error: {err}"
 
-# ---- Ensure at least one chat ---- #
+# ---- INIT ONE CHAT ---- #
 if not st.session_state.chat_sessions:
     new_chat()
 
 # ---- SIDEBAR ---- #
-st.sidebar.title("💬 Chats")
-for chat_id, chat in st.session_state.chat_sessions.items():
-    if st.sidebar.button(chat["title"], key=chat_id):
-        st.session_state.active_chat = chat_id
-
-if st.sidebar.button("➕ New Chat"):
-    new_chat()
+with st.sidebar:
+    st.title("💬 Chats")
+    if st.button("➕ New Chat", key="create_new"):
+        new_chat()
+    for chat_id, chat in st.session_state.chat_sessions.items():
+        if st.button(chat["title"], key=f"chat_{chat_id}"):
+            st.session_state.active_chat = chat_id
 
 # ---- ACTIVE CHAT ---- #
 active_chat_id = st.session_state.active_chat
 active_chat = st.session_state.chat_sessions[active_chat_id]
 
-# ---- MAIN TITLE ---- #
+# ---- PAGE TITLE ---- #
 st.markdown("""
     <style>
         .main-title {
             font-size: 42px;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-top: -5px;
+            margin-bottom: 15px;
+        }
+        .chat-window {
+            height: 73vh;
+            overflow-y: auto;
+            padding-right: 10px;
+            padding-bottom: 80px;
+        }
+        .chat-input-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 12px 1rem;
+            background: white;
+            border-top: 1px solid #eee;
+            z-index: 999;
+        }
+        input.chatbox {
+            width: 100%;
+            padding: 10px 16px;
+            font-size: 16px;
+            border-radius: 25px;
+            border: 1px solid #ccc;
         }
     </style>
     <div class="main-title">🤖 WiseBuddy</div>
 """, unsafe_allow_html=True)
 
-# ---- MESSAGE BUBBLES ---- #
-st.markdown("<div style='height:68vh; overflow-y:auto; padding-right:10px;'>", unsafe_allow_html=True)
+# ---- DISPLAY CHAT ---- #
+st.markdown("<div class='chat-window'>", unsafe_allow_html=True)
 bubble_style = """display:inline-block;padding:10px 15px;border-radius:15px;
-                  margin:6px 0;max-width:75%;font-size:16px;line-height:1.5;box-shadow:0 1px 3px rgba(0,0,0,0.1);"""
-
+                  margin:6px 0;max-width:75%;font-size:16px;line-height:1.5;
+                  box-shadow:0 1px 3px rgba(0,0,0,0.1);"""
 for msg in active_chat["messages"]:
     if msg["role"] == "user":
         st.markdown(
@@ -98,40 +120,17 @@ for msg in active_chat["messages"]:
             unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ---- INPUT FORM FIXED AT BOTTOM ---- #
-st.markdown("""
-    <style>
-    .chat-input-container {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        padding: 12px 1rem;
-        background: white;
-        border-top: 1px solid #eee;
-    }
-    .chat-input-field input {
-        width: 100%;
-        padding: 10px 16px;
-        border-radius: 25px;
-        border: 1px solid #ccc;
-        font-size: 16px;
-    }
-    </style>
-""", unsafe_allow_html=True)
+# ---- FIXED INPUT FIELD ---- #
+st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
+with st.form("chat_form", clear_on_submit=True):
+    col1, col2 = st.columns([10, 1])
+    with col1:
+        user_input = st.text_input("Type a message...", key="input_message", label_visibility="collapsed")
+    with col2:
+        submitted = st.form_submit_button("🛩️", use_container_width=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
-with st.container():
-    st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
-    with st.form("chat_form", clear_on_submit=True):
-        col1, col2 = st.columns([10, 1])
-        with col1:
-            user_input = st.text_input("Type a message...", key="input_message", label_visibility="collapsed")
-        with col2:
-            submitted = st.form_submit_button("🛩️", use_container_width=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# ---- ON SUBMIT ---- #
+# ---- ON SEND ---- #
 if submitted and user_input.strip():
     active_chat["messages"].append({'role': 'user', 'content': user_input.strip()})
     reply = generate_reply_with_gemini(user_input.strip())
