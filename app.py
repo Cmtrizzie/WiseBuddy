@@ -82,8 +82,6 @@ def handle_send():
         if len(user_msgs) == 3:
             rename_chat(active_chat_id, user_msgs[0]['content'][:30] + "...")
 
-    st.session_state.input_text = ''
-
 # ---- STYLE FOR WHATSAPP-LIKE INPUT ---- #
 st.markdown("""
 <style>
@@ -118,7 +116,7 @@ button.send-btn {
 with st.form(key="chat_form", clear_on_submit=True):
     col1, col2 = st.columns([10, 1])
     with col1:
-        user_input = st.text_input("Type a message...", key="input_text", label_visibility="collapsed")
+        st.text_input("Type a message...", key="input_text", label_visibility="collapsed")
     with col2:
         submitted = st.form_submit_button("🛩️", use_container_width=True)
 
