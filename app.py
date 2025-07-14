@@ -7,7 +7,12 @@ st.set_page_config(page_title="WiseBuddy 🤖", layout="wide")
 
 # ---- GEMINI API SETUP ---- #
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel("gemini-pro")
+
+# Use correct model name and start chat session
+model = genai.GenerativeModel("models/gemini-1.5-pro")
+
+# We'll create chat sessions per user message to keep stateless simplicity
+# (Or you could store chat_session per conversation for context retention)
 
 # ---- SESSION STATE ---- #
 if 'chat_sessions' not in st.session_state:
@@ -27,8 +32,9 @@ def rename_chat(chat_id, new_title):
 
 def generate_reply_with_gemini(user_message):
     try:
+        chat_session = model.start_chat()  # start fresh chat each time (no history)
         prompt = f"{user_message}\n\nRespond in a helpful and friendly way. Use emojis where appropriate!"
-        response = model.generate_content(prompt)
+        response = chat_session.send_message(prompt)
         return response.text.strip()
     except Exception as e:
         return f"⚠️ Gemini error: {str(e)}"
