@@ -100,7 +100,7 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
     justify-content: center;
     padding: 8px 12px; /* Increased padding for larger clickable area */
     border-radius: 10px; /* Slight rounding */
-    cursor: pointer;
+    cursor: pointer; /* Ensure pointer cursor for visual feedback */
     transition: background-color 0.2s ease, color 0.2s ease;
     min-width: 44px; /* Ensure minimum touch target size */
     min-height: 44px; /* Ensure minimum touch target size */
@@ -283,13 +283,16 @@ div.stForm { display: none; }
     background-color: #1a56c7;
 }
 
+.sidebar-chat-item-container {
+    margin-bottom: 5px;
+}
 .sidebar-chat-item {
     padding: 10px 15px;
-    margin-bottom: 5px;
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.2s ease;
     word-wrap: break-word;
+    color: white; /* Ensure text color is white */
 }
 .sidebar-chat-item:hover {
     background-color: #1a1a1a;
@@ -299,55 +302,157 @@ div.stForm { display: none; }
     border-left: 3px solid #2563eb;
     padding-left: 12px; /* Adjust for border */
 }
+
+/* IMPORTANT: Hidden buttons for JS interaction. This makes them truly invisible. */
+[data-testid^="stButton-hidden_"] { /* Target all buttons whose data-testid starts with 'stButton-hidden_' */
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    position: absolute !important;
+    overflow: hidden !important;
+    pointer-events: none !important; /* Ensure they don't capture any pointer events */
+}
 </style>
 """, unsafe_allow_html=True)
 
 # --- SIDEBAR CONTENT --- #
 with st.sidebar:
     st.markdown("## Chat History")
-    if st.button("➕ Start New Chat", key="sidebar_new_chat_button"):
+    if st.button("➕ Start New Chat", key="sidebar_new_chat_button", use_container_width=True):
         new_chat()
 
     st.markdown("---") # Separator
 
     if st.session_state.chat_sessions:
-        for chat_id, chat_data in st.session_state.chat_sessions.items():
+        # Sort chats to ensure consistent display, e.g., by modification time or UUID
+        # For simplicity, sorting by title for now if it's already a string.
+        sorted_chat_ids = sorted(st.session_state.chat_sessions.keys(),
+                                 key=lambda x: st.session_state.chat_sessions[x].get('last_updated', x),
+                                 reverse=True) # Assuming 'last_updated' key exists for sorting
+
+        for chat_id in sorted_chat_ids:
+            chat_data = st.session_state.chat_sessions[chat_id]
             is_active = " active" if chat_id == st.session_state.active_chat else ""
-            st.markdown(f"""
-                <div class="sidebar-chat-item{is_active}" onclick="window.parent.document.querySelector('[data-testid=\"stSidebarUserContent\"]').click();
-                                                                   fetch('/_st_internal_script_rerun?action=rerun&value={chat_id}')">
-                    {chat_data['title']}
-                </div>
-            """, unsafe_allow_html=True)
-            # Using a hidden st.button for actual switching (more reliable than JS for direct state change)
-            if st.button(chat_data['title'], key=f"switch_chat_{chat_id}", help="Switch to this chat", use_container_width=True):
+
+            # Use a regular Streamlit button for each chat item
+            if st.button(
+                chat_data['title'],
+                key=f"sidebar_chat_select_{chat_id}",
+                help="Switch to this chat",
+                use_container_width=True
+            ):
                 switch_chat(chat_id)
-                # Note: The JS click on sidebar content is an attempt to close sidebar after click,
-                # but might not work perfectly with Streamlit's internal mechanisms.
-                # Direct st.button is the reliable way.
+                # Attempt to close sidebar after switching
+                # This direct JS might still be a bit flaky on mobile
+                st.markdown("""
+                    <script>
+                        // Use a short delay to ensure the DOM is ready for the click
+                        setTimeout(function() {
+                            const sidebarToggleButton = window.parent.document.querySelector('[data-testid="stSidebarToggleButton"]');
+                            if (sidebarToggleButton) {
+                                sidebarToggleButton.click();
+                                // console.log("Sidebar toggle button clicked after chat switch.");
+                            } else {
+                                // console.warn("Sidebar toggle button not found after chat switch.");
+                            }
+                        }, 100); // Increased delay slightly
+                    </script>
+                """, unsafe_allow_html=True)
     else:
         st.markdown("<p style='color: #888;'>No chats yet. Start a new one!</p>")
 
+# --- HIDDEN STREAMLIT BUTTONS FOR HEADER INTERACTIVITY ---
+# These buttons are not visible but will capture clicks triggered by our custom HTML
+# We assign them unique keys. Streamlit will assign a data-testid like "stButton-KEY_NAME"
+hidden_sidebar_toggle_btn = st.button("Toggle Sidebar", key="hidden_sidebar_toggle_button")
+hidden_new_chat_btn = st.button("New Chat Action", key="hidden_new_chat_button_action")
+hidden_chat_title_btn = st.button("Chat Title Action", key="hidden_chat_title_button_action")
 
-# --- CUSTOM HEADER (Including functionality) --- #
+
+# --- Custom Header HTML with inline JavaScript to trigger hidden buttons ---
 st.markdown(f"""
 <div class="custom-header">
-    <div class="header-item" onclick="window.parent.document.querySelector('[data-testid=\"stSidebar\"] button').click()">
+    <div class="header-item" id="header-sidebar-toggle">
         <div class="header-icon">☰</div>
     </div>
-    <div class="header-item">
+    <div class="header-item" id="header-chat-title">
         <div class="header-title">{active_chat["title"]}</div>
     </div>
-    <div class="header-item" onclick="streamlit.setComponentValue('new_chat_clicked', true)">
+    <div class="header-item" id="header-new-chat-button">
         <div class="header-icon">+</div>
     </div>
 </div>
+
+<script>
+    // Execute this script only when the DOM is fully loaded to ensure elements exist
+    document.addEventListener('DOMContentLoaded', function() {{
+        // Helper function to attach event listeners
+        function setupClickListener(elementId, targetButtonDataTestId) {{
+            const customElement = document.getElementById(elementId);
+            if (customElement) {{
+                // console.log(`Attempting to set up listener for ${elementId}`);
+
+                // Listener for general clicks (desktop browsers)
+                customElement.addEventListener('click', function(event) {{
+                    event.stopPropagation(); // Prevent event from bubbling up to parent elements
+                    event.preventDefault(); // Prevent default browser actions
+                    // console.log(`Custom element ${elementId} clicked.`);
+                    triggerHiddenStreamlitButton(targetButtonDataTestId);
+                }});
+
+                // Listener for touch events (mobile phones)
+                customElement.addEventListener('touchend', function(event) {{
+                    event.stopPropagation(); // Prevent event from bubbling up
+                    event.preventDefault(); // Prevent default browser actions (e.g., zoom)
+                    // console.log(`Custom element ${elementId} touched (touchend).`);
+                    triggerHiddenStreamlitButton(targetButtonDataTestId);
+                }});
+            }} else {{
+                console.error(`Custom element with ID ${elementId} not found.`);
+            }}
+        }}
+
+        // Function to programmatically click the hidden Streamlit button
+        function triggerHiddenStreamlitButton(dataTestId) {{
+            // Use setTimeout to give Streamlit's rendering a moment to ensure the button is active
+            setTimeout(function() {{
+                // Streamlit buttons are within a div with data-testid, and the actual <button> is a child
+                const targetButton = window.parent.document.querySelector(`[data-testid="${dataTestId}"] > button`);
+                if (targetButton) {{
+                    targetButton.click(); // Programmatically click the hidden button
+                    // console.log(`Hidden Streamlit button ${dataTestId} clicked.`);
+                }} else {{
+                    console.error(`Target Streamlit button with data-testid="${dataTestId}" not found.`);
+                }}
+            }}, 50); // Small delay, adjust if needed (e.g., 100ms)
+        }}
+
+        // Setup listeners for each header item, mapping to their respective hidden Streamlit buttons
+        setupClickListener('header-sidebar-toggle', 'stButton-hidden_sidebar_toggle_button');
+        setupClickListener('header-new-chat-button', 'stButton-hidden_new_chat_button_action');
+        setupClickListener('header-chat-title', 'stButton-hidden_chat_title_button_action');
+
+    }}); // End DOMContentLoaded
+</script>
 """, unsafe_allow_html=True)
 
-# Streamlit component for new chat button to capture click
-if st.session_state.get('new_chat_clicked', False):
-    new_chat()
-    st.session_state['new_chat_clicked'] = False # Reset click state
+
+# --- Python logic triggered by hidden buttons ---
+# These conditions will be true if the corresponding hidden button was clicked by JS
+if hidden_sidebar_toggle_btn:
+    # Streamlit's native sidebar toggle logic handles itself.
+    # No explicit `st.sidebar.expanded = ...` needed here.
+    st.info("Sidebar toggled via header button!") # For debugging feedback
+
+if hidden_new_chat_btn:
+    new_chat() # Call the new_chat function
+    st.info("New chat created via header button!") # For debugging feedback
+
+if hidden_chat_title_btn:
+    # This is where you'd add logic for what happens when the title is clicked
+    st.toast(f"You clicked on the chat title: '{active_chat['title']}'", icon="ℹ️")
+
 
 # --- WELCOME MESSAGE / CHAT MESSAGES --- #
 if len(active_chat["messages"]) == 0:
@@ -373,6 +478,10 @@ if user_input: # st.chat_input returns the message if entered, None otherwise
     active_chat["messages"].append({"role": "user", "content": user_input.strip()})
     response = generate_reply(user_input.strip())
     active_chat["messages"].append({"role": "assistant", "content": response})
+
+    # Update 'last_updated' timestamp for sorting in sidebar
+    # Using a new UUID for chronological order (or datetime.now())
+    active_chat['last_updated'] = str(uuid.uuid4())
 
     user_message_count = len([m for m in active_chat["messages"] if m["role"] == "user"])
     # Rename chat after 3 user messages if it's still "New Chat"
