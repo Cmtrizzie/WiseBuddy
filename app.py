@@ -371,6 +371,7 @@ hidden_chat_title_btn = st.button("Chat Title Action", key="hidden_chat_title_bu
 
 
 # --- Custom Header HTML with inline JavaScript to trigger hidden buttons ---
+# Fixed: Doubled curly braces for JavaScript template literal expressions within the f-string
 st.markdown(f"""
 <div class="custom-header">
     <div class="header-item" id="header-sidebar-toggle">
@@ -391,13 +392,13 @@ st.markdown(f"""
         function setupClickListener(elementId, targetButtonDataTestId) {{
             const customElement = document.getElementById(elementId);
             if (customElement) {{
-                // console.log(`Attempting to set up listener for ${elementId}`);
+                // console.log(`Attempting to set up listener for ${{elementId}}`);
 
                 // Listener for general clicks (desktop browsers)
                 customElement.addEventListener('click', function(event) {{
                     event.stopPropagation(); // Prevent event from bubbling up to parent elements
                     event.preventDefault(); // Prevent default browser actions
-                    // console.log(`Custom element ${elementId} clicked.`);
+                    // console.log(`Custom element ${{elementId}} clicked.`);
                     triggerHiddenStreamlitButton(targetButtonDataTestId);
                 }});
 
@@ -405,11 +406,11 @@ st.markdown(f"""
                 customElement.addEventListener('touchend', function(event) {{
                     event.stopPropagation(); // Prevent event from bubbling up
                     event.preventDefault(); // Prevent default browser actions (e.g., zoom)
-                    // console.log(`Custom element ${elementId} touched (touchend).`);
+                    // console.log(`Custom element ${{elementId}} touched (touchend).`);
                     triggerHiddenStreamlitButton(targetButtonDataTestId);
                 }});
             }} else {{
-                console.error(`Custom element with ID ${elementId} not found.`);
+                console.error(`Custom element with ID ${{elementId}} not found.`);
             }}
         }}
 
@@ -418,12 +419,12 @@ st.markdown(f"""
             // Use setTimeout to give Streamlit's rendering a moment to ensure the button is active
             setTimeout(function() {{
                 // Streamlit buttons are within a div with data-testid, and the actual <button> is a child
-                const targetButton = window.parent.document.querySelector(`[data-testid="${dataTestId}"] > button`);
+                const targetButton = window.parent.document.querySelector(`[data-testid="${{dataTestId}}"] > button`);
                 if (targetButton) {{
                     targetButton.click(); // Programmatically click the hidden button
-                    // console.log(`Hidden Streamlit button ${dataTestId} clicked.`);
+                    // console.log(`Hidden Streamlit button ${{dataTestId}} clicked.`);
                 }} else {{
-                    console.error(`Target Streamlit button with data-testid="${dataTestId}" not found.`);
+                    console.error(`Target Streamlit button with data-testid="${{dataTestId}}" not found.`);
                 }}
             }}, 50); // Small delay, adjust if needed (e.g., 100ms)
         }}
