@@ -1,7 +1,6 @@
 import streamlit as st
 import uuid
 import google.generativeai as genai
-from streamlit_js_eval import streamlit_js_eval
 
 # --- CONFIG --- #
 st.set_page_config(page_title="WiseBuddy 🤖", layout="wide", initial_sidebar_state="collapsed")
@@ -14,6 +13,10 @@ model = genai.GenerativeModel("models/gemini-1.5-pro")
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {}
     st.session_state.active_chat = None
+if "slidebar_position" not in st.session_state:
+    st.session_state.slidebar_position = "right"
+if "slidebar_open" not in st.session_state:
+    st.session_state.slidebar_open = False
 
 def new_chat():
     chat_id = str(uuid.uuid4())
@@ -22,10 +25,12 @@ def new_chat():
         "messages": []
     }
     st.session_state.active_chat = chat_id
+    st.session_state.slidebar_open = False
     st.rerun()
 
 def switch_chat(chat_id):
     st.session_state.active_chat = chat_id
+    st.session_state.slidebar_open = False
     st.rerun()
 
 def rename_chat(chat_id, title):
@@ -40,6 +45,14 @@ def generate_reply(user_input):
         if "429" in str(e):
             return "🚫 API quota limit reached. Please wait a bit and try again!"
         return f"⚠️ Gemini error: {str(e)}"
+
+def toggle_slidebar():
+    st.session_state.slidebar_open = not st.session_state.slidebar_open
+    st.rerun()
+
+def swap_slidebar_position():
+    st.session_state.slidebar_position = "left" if st.session_state.slidebar_position == "right" else "right"
+    st.rerun()
 
 # --- INIT DEFAULT CHAT --- #
 if not st.session_state.chat_sessions:
@@ -288,20 +301,6 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
 </style>
 """, unsafe_allow_html=True)
 
-# --- SLIDEBAR STATE --- #
-if "slidebar_position" not in st.session_state:
-    st.session_state.slidebar_position = "right"
-if "slidebar_open" not in st.session_state:
-    st.session_state.slidebar_open = False
-
-def toggle_slidebar():
-    st.session_state.slidebar_open = not st.session_state.slidebar_open
-    st.rerun()
-
-def swap_slidebar_position():
-    st.session_state.slidebar_position = "left" if st.session_state.slidebar_position == "right" else "right"
-    st.rerun()
-
 # --- Custom Header HTML ---
 st.markdown(f"""
 <div class="custom-header">
@@ -317,86 +316,50 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Generate slidebar content
-slidebar_html = """
-<div class="slidebar-content">
-    <h3 style="color: white; margin-bottom: 20px;">Chat History</h3>
-    <button onclick="swapPosition()" style="background-color: #333; margin-bottom: 20px;">
-        Swap Side (←→)
-    </button>
-"""
-
-if st.button("➕ Start New Chat", key="slidebar_new_chat_button"):
-    new_chat()
-
-slidebar_html += "<div class='sidebar-chat-list'>"
-
-if st.session_state.chat_sessions:
-    sorted_chat_ids = sorted(st.session_state.chat_sessions.keys())
-    for chat_id in sorted_chat_ids:
-        chat_data = st.session_state.chat_sessions[chat_id]
-        is_active = "active" if chat_id == st.session_state.active_chat else ""
-        slidebar_html += f"""
-        <div class="sidebar-chat-item-container">
-            <div class="sidebar-chat-item {is_active}" onclick="switchChat('{chat_id}')">
-                {chat_data['title']}
-            </div>
-        </div>
-        """
-else:
-    slidebar_html += "<p style='color: #888;'>No chats yet. Start a new one!</p>"
-
-slidebar_html += "</div></div>"
-
-# --- SLIDEBAR CONTAINER --- #
+# --- SLIDEBAR CONTENT --- #
 slidebar_class = f"slidebar-{st.session_state.slidebar_position}"
 if st.session_state.slidebar_open:
     slidebar_class += " slidebar-open"
 
-st.markdown(f"""
-<div class="slidebar-container {slidebar_class}">
-    {slidebar_html}
-</div>
-""", unsafe_allow_html=True)
+with st.container():
+    st.markdown(f"""
+    <div class="slidebar-container {slidebar_class}">
+        <div class="slidebar-content">
+            <h3 style="color: white; margin-bottom: 20px;">Chat History</h3>
+    """, unsafe_allow_html=True)
+    
+    if st.button("Swap Side (←→)", key="swap_side_button"):
+        swap_slidebar_position()
+    
+    if st.button("➕ Start New Chat", key="new_chat_button"):
+        new_chat()
+    
+    st.markdown("<div class='sidebar-chat-list'>", unsafe_allow_html=True)
+    
+    if st.session_state.chat_sessions:
+        sorted_chat_ids = sorted(st.session_state.chat_sessions.keys())
+        for chat_id in sorted_chat_ids:
+            chat_data = st.session_state.chat_sessions[chat_id]
+            is_active = "active" if chat_id == st.session_state.active_chat else ""
+            if st.button(
+                chat_data['title'],
+                key=f"chat_{chat_id}",
+                help=f"Switch to {chat_data['title']}"
+            ):
+                switch_chat(chat_id)
+    else:
+        st.markdown("<p style='color: #888;'>No chats yet. Start a new one!</p>", unsafe_allow_html=True)
+    
+    st.markdown("</div></div></div>", unsafe_allow_html=True)
 
-# JavaScript for interactions
-streamlit_js_eval(js_expressions="""
-// Toggle slidebar
-document.getElementById('slidebar-toggle-button').addEventListener('click', function() {
-    if (window.streamlit) {
-        streamlit.setComponentValue('toggle_slidebar', true);
-    }
-});
-
-// Swap position function
-window.swapPosition = function() {
-    if (window.streamlit) {
-        streamlit.setComponentValue('swap_slidebar_position', true);
-    }
-};
-
-// Switch chat function
-window.switchChat = function(chatId) {
-    if (window.streamlit) {
-        streamlit.setComponentValue('switch_to_chat_' + chatId, true);
-    }
-};
-""", key="slidebar_js", all_scopes=True)
-
-# Handle slidebar actions
-if st.session_state.get('toggle_slidebar'):
-    toggle_slidebar()
-    st.session_state.toggle_slidebar = False
-
-if st.session_state.get('swap_slidebar_position'):
-    swap_slidebar_position()
-    st.session_state.swap_slidebar_position = False
-
-# Handle chat switching
-for chat_id in st.session_state.chat_sessions.keys():
-    if st.session_state.get(f'switch_to_chat_{chat_id}'):
-        switch_chat(chat_id)
-        st.session_state[f'switch_to_chat_{chat_id}'] = False
+# JavaScript for toggle button
+components.html(f"""
+<script>
+document.getElementById('slidebar-toggle-button').addEventListener('click', function() {{
+    window.parent.document.dispatchEvent(new CustomEvent('TOGGLE_SLIDEBAR'));
+}});
+</script>
+""", height=0)
 
 # --- WELCOME MESSAGE / CHAT MESSAGES --- #
 if len(active_chat["messages"]) == 0:
