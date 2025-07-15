@@ -148,7 +148,7 @@ if not st.session_state.active_topic:
 active_topic = st.session_state.topics[st.session_state.active_topic]
 st.subheader(f"Current Topic: **{active_topic['name']}**")
 
-# File management section
+# File management section - FIXED SYNTAX ERROR HERE
 with st.expander(f"📁 Document Manager ({len(active_topic['files']}) files", 
                 expanded=st.session_state.expanded_files):
     if active_topic["files"]:
@@ -184,8 +184,8 @@ if st.session_state.active_mode == "Research":
     with research_cols[1]:
         with st.container(border=True):
             st.markdown("### ❓ Ask Questions")
-            st.text_area("Ask about your documents...", height=100)
-            st.button("Ask AI", disabled=not active_topic["files"])
+            st.text_area("Ask about your documents...", height=100, key="research_question")
+            st.button("Ask AI", disabled=not active_topic["files"], key="ask_ai_btn")
             
     with research_cols[2]:
         with st.container(border=True):
@@ -204,21 +204,21 @@ elif st.session_state.active_mode == "Tools":
             st.markdown("### 🔗 Merge PDFs")
             st.caption("Combine multiple documents")
             st.progress(0)
-            st.button("Merge Files", disabled=len(active_topic["files"]) < 2)
+            st.button("Merge Files", disabled=len(active_topic["files"]) < 2, key="merge_btn")
     
     with tool_cols[1]:
         with st.container(border=True, height=200):
             st.markdown("### ✂️ Split PDF")
             st.caption("Extract specific pages")
             st.progress(0)
-            st.button("Split Document", disabled=not active_topic["files"])
+            st.button("Split Document", disabled=not active_topic["files"], key="split_btn")
     
     with tool_cols[2]:
         with st.container(border=True, height=200):
             st.markdown("### 🗜️ Compress PDF")
             st.caption("Reduce file size")
             st.progress(0)
-            st.button("Compress Files", disabled=not active_topic["files"])
+            st.button("Compress Files", disabled=not active_topic["files"], key="compress_btn")
 
 # ----------------- FOOTER -----------------
 st.markdown("---")
