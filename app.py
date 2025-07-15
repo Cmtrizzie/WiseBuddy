@@ -1,5 +1,3 @@
-# ✅ FINAL STREAMLIT CODE FOR WISEBUDDY WITH GEMINI INTEGRATION + CUSTOM UI
-
 import streamlit as st
 import uuid
 import google.generativeai as genai
@@ -49,7 +47,7 @@ if not st.session_state.chat_sessions:
 active_id = st.session_state.active_chat
 active_chat = st.session_state.chat_sessions[active_id]
 
-# ---------------- STYLING ----------------
+# ---------------- LOAD CSS ----------------
 st.markdown(open("styles.css").read(), unsafe_allow_html=True)
 
 # ---------------- SIDEBAR ----------------
@@ -69,13 +67,15 @@ with st.sidebar:
 # ---------------- HEADER ----------------
 st.markdown(f"""
 <div class="custom-header">  
-    <div class="header-item" onclick="window.parent.document.querySelector('[data-testid=\"stSidebar\"] button').click()">☰</div>  
+    <div class="header-item" onclick="window.parent.document.querySelector('[data-testid=\\\"stSidebar\\\"] button').click()">
+        ☰
+    </div>  
     <div class="header-item header-title">{active_chat['title']}</div>  
     <div class="header-item" onclick="window.parent.location.reload()">+</div>  
 </div>
 """, unsafe_allow_html=True)
 
-# ---------------- WELCOME OR CHAT ----------------
+# ---------------- MESSAGES ----------------
 if len(active_chat["messages"]) == 0:
     st.markdown("""
     <div class='welcome-message'>
@@ -104,4 +104,3 @@ if user_input:
         rename_chat(active_id, active_chat["messages"][0]["content"][:30].strip() + "...")
 
     st.rerun()
-```
