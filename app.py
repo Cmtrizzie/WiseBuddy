@@ -13,6 +13,8 @@ model = genai.GenerativeModel("models/gemini-1.5-pro")
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {}
     st.session_state.active_chat = None
+if "new_chat_clicked" not in st.session_state:
+    st.session_state.new_chat_clicked = False
 
 def new_chat():
     chat_id = str(uuid.uuid4())
@@ -47,7 +49,8 @@ active_id = st.session_state.active_chat
 active_chat = st.session_state.chat_sessions[active_id]
 
 # --- STYLING --- #
-# Custom CSS will be added here as in your code above (trimmed for brevity)
+with open("style.css") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # --- SIDEBAR --- #
 with st.sidebar:
@@ -75,9 +78,9 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-if st.session_state.get('new_chat_clicked', False):
+if st.session_state.new_chat_clicked:
     new_chat()
-    st.session_state['new_chat_clicked'] = False
+    st.session_state.new_chat_clicked = False
 
 # --- CHAT WINDOW --- #
 if len(active_chat["messages"]) == 0:
