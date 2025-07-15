@@ -1,7 +1,7 @@
 import streamlit as st
 import uuid
 import google.generativeai as genai
-from streamlit_js_eval import streamlit_js_eval
+from streamlit.components.v1 import html
 
 # --- CONFIG --- #
 st.set_page_config(page_title="WiseBuddy 🤖", layout="wide", initial_sidebar_state="collapsed")
@@ -14,6 +14,7 @@ model = genai.GenerativeModel("models/gemini-1.5-pro")
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {}
     st.session_state.active_chat = None
+    st.session_state.sidebar_open = False
 
 def new_chat():
     chat_id = str(uuid.uuid4())
@@ -256,98 +257,92 @@ with st.sidebar:
                 use_container_width=True
             ):
                 switch_chat(chat_id)
-                streamlit_js_eval(js_expressions="parent.document.querySelector('[data-testid=\"stSidebarToggleButton\"]').click()")
     else:
         st.markdown("<p style='color: #888;'>No chats yet. Start a new one!</p>")
 
 # --- Custom Header ---
 st.markdown(f"""
 <div class="custom-header">
-    <div class="header-item" id="header-sidebar-toggle">
+    <div class="header-item" id="header-sidebar-toggle" onclick="handleHeaderClick('toggle')">
         <div class="header-icon">☰</div>
     </div>
-    <div class="header-item" id="header-chat-title">
+    <div class="header-item" id="header-chat-title" onclick="handleHeaderClick('title')">
         <div class="header-title">{active_chat["title"]}</div>
     </div>
-    <div class="header-item" id="header-new-chat-button">
+    <div class="header-item" id="header-new-chat-button" onclick="handleHeaderClick('new')">
         <div class="header-icon">+</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- JavaScript for Header Interactivity ---
-streamlit_js_eval(js_expressions="""
-    function addClickListener(elementId, callback) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.addEventListener('click', callback);
-            element.addEventListener('touchend', function(event) {
-                event.preventDefault();
-                callback();
-            });
-        }
-    }
-
-    // Toggle sidebar
-    addClickListener('header-sidebar-toggle', function() {
+# JavaScript for header interactivity
+html("""
+<script>
+function handleHeaderClick(action) {
+    if (action === 'toggle') {
+        // Toggle sidebar
         const sidebarToggleButton = window.parent.document.querySelector('[data-testid="stSidebarToggleButton"]');
-        if (sidebarToggleButton) {
-            sidebarToggleButton.click();
-        }
-    });
+        if (sidebarToggleButton) sidebarToggleButton.click();
+    } 
+    else if (action === 'new') {
+        // Create new chat
+        const newChatEvent = new CustomEvent('newChatRequested', { detail: {} });
+        window.dispatchEvent(newChatEvent);
+    }
+    else if (action === 'title') {
+        // Chat title click
+        const titleClickEvent = new CustomEvent('chatTitleClicked', { detail: {} });
+        window.dispatchEvent(titleClickEvent);
+    }
+}
 
-    // New chat button
-    addClickListener('header-new-chat-button', function() {
-        // Create a custom event to trigger new chat
-        const event = new CustomEvent('newChatRequested', { detail: {} });
-        window.dispatchEvent(event);
-    });
+// Listen for events
+window.addEventListener('newChatRequested', function() {
+    window.parent.postMessage({type: 'NEW_CHAT_REQUEST'}, '*');
+});
 
-    // Chat title click (optional)
-    addClickListener('header-chat-title', function() {
-        const event = new CustomEvent('chatTitleClicked', { detail: {} });
-        window.dispatchEvent(event);
-    });
-""", key="header_js_injector", all_scopes=True)
-
-# --- Event Listeners for Custom Events ---
-st.markdown("""
-<script>
-    window.addEventListener('newChatRequested', function() {
-        // Send message to Streamlit
-        window.parent.postMessage({type: 'NEW_CHAT_REQUEST'}, '*');
-    });
-    
-    window.addEventListener('chatTitleClicked', function() {
-        // Send message to Streamlit
-        window.parent.postMessage({type: 'CHAT_TITLE_CLICK'}, '*');
-    });
+window.addEventListener('chatTitleClicked', function() {
+    window.parent.postMessage({type: 'CHAT_TITLE_CLICK'}, '*');
+});
 </script>
-""", unsafe_allow_html=True)
+""")
 
-# --- Handle custom events from JavaScript ---
-if 'NEW_CHAT_REQUEST' in st.session_state.get('events', []):
+# --- Handle header events ---
+if 'header_events' not in st.session_state:
+    st.session_state.header_events = {'new': False, 'title': False}
+
+# Listen for new chat requests
+if st.session_state.header_events['new']:
     new_chat()
-    st.session_state.events.remove('NEW_CHAT_REQUEST')
+    st.session_state.header_events['new'] = False
 
-if 'CHAT_TITLE_CLICK' in st.session_state.get('events', []):
+# Listen for title clicks
+if st.session_state.header_events['title']:
     st.toast(f"You clicked on: '{active_chat['title']}'", icon="ℹ️")
-    st.session_state.events.remove('CHAT_TITLE_CLICK')
+    st.session_state.header_events['title'] = False
 
-# Listen to postMessage events
-components.html("""
+# Listen for messages from JavaScript
+html("""
 <script>
-    window.addEventListener("message", (event) => {
-        if (event.data.type === "NEW_CHAT_REQUEST") {
-            // Send to Streamlit
-            window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'NEW_CHAT_REQUEST'}, '*');
-        }
-        else if (event.data.type === "CHAT_TITLE_CLICK") {
-            window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'CHAT_TITLE_CLICK'}, '*');
-        }
-    });
+window.addEventListener("message", (event) => {
+    if (event.data.type === "NEW_CHAT_REQUEST") {
+        window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'NEW_CHAT_REQUEST'}, '*');
+    }
+    else if (event.data.type === "CHAT_TITLE_CLICK") {
+        window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'CHAT_TITLE_CLICK'}, '*');
+    }
+});
 </script>
-""", height=0, width=0)
+""")
+
+# Update state based on messages
+if 'NEW_CHAT_REQUEST' in st.session_state:
+    st.session_state.header_events['new'] = True
+    del st.session_state['NEW_CHAT_REQUEST']
+    
+if 'CHAT_TITLE_CLICK' in st.session_state:
+    st.session_state.header_events['title'] = True
+    del st.session_state['CHAT_TITLE_CLICK']
 
 # --- WELCOME MESSAGE / CHAT MESSAGES --- #
 if len(active_chat["messages"]) == 0:
