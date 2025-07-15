@@ -13,8 +13,6 @@ model = genai.GenerativeModel("models/gemini-1.5-pro")
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {}
     st.session_state.active_chat = None
-if "new_chat_clicked" not in st.session_state:
-    st.session_state.new_chat_clicked = False
 
 # ---------------- CHAT HELPERS ----------------
 def new_chat():
@@ -47,9 +45,25 @@ if not st.session_state.chat_sessions:
 active_id = st.session_state.active_chat
 active_chat = st.session_state.chat_sessions[active_id]
 
-# ---------------- LOAD CSS (fixed) ----------------
+# ---------------- LOAD CSS ----------------
 with open("styles.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+# ---------------- HEADER ----------------
+col1, col2, col3 = st.columns([1, 8, 1])
+with col1:
+    st.markdown(
+        "<div class='header-item' onclick=\"window.parent.document.querySelector('[data-testid=\\\"stSidebar\\\"] button').click()\">☰</div>",
+        unsafe_allow_html=True,
+    )
+with col2:
+    st.markdown(
+        f"<div class='header-item header-title'>{active_chat['title']}</div>",
+        unsafe_allow_html=True,
+    )
+with col3:
+    if st.button("➕", key="new_chat_button", help="Start a new chat"):
+        new_chat()
 
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
@@ -64,15 +78,6 @@ with st.sidebar:
                 switch_chat(chat_id)
     else:
         st.markdown("<p style='color: #888;'>No chats yet. Start a new one!</p>", unsafe_allow_html=True)
-
-# ---------------- HEADER ----------------
-st.markdown(f"""
-<div class="custom-header">  
-    <div class="header-item" onclick="window.parent.document.querySelector('[data-testid=\\\"stSidebar\\\"] button').click()">☰</div>  
-    <div class="header-item header-title">{active_chat['title']}</div>  
-    <div class="header-item" onclick="window.parent.location.reload()">+</div>  
-</div>
-""", unsafe_allow_html=True)
 
 # ---------------- MESSAGES ----------------
 if len(active_chat["messages"]) == 0:
