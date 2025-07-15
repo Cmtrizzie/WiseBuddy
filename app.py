@@ -1,6 +1,7 @@
 import streamlit as st
 import uuid
 import google.generativeai as genai
+from streamlit_js_eval import streamlit_js_eval
 
 # --- CONFIG --- #
 st.set_page_config(page_title="WiseBuddy 🤖", layout="wide", initial_sidebar_state="collapsed")
@@ -13,10 +14,6 @@ model = genai.GenerativeModel("models/gemini-1.5-pro")
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {}
     st.session_state.active_chat = None
-if "slidebar_position" not in st.session_state:
-    st.session_state.slidebar_position = "right"
-if "slidebar_open" not in st.session_state:
-    st.session_state.slidebar_open = False
 
 def new_chat():
     chat_id = str(uuid.uuid4())
@@ -25,12 +22,10 @@ def new_chat():
         "messages": []
     }
     st.session_state.active_chat = chat_id
-    st.session_state.slidebar_open = False
     st.rerun()
 
 def switch_chat(chat_id):
     st.session_state.active_chat = chat_id
-    st.session_state.slidebar_open = False
     st.rerun()
 
 def rename_chat(chat_id, title):
@@ -45,14 +40,6 @@ def generate_reply(user_input):
         if "429" in str(e):
             return "🚫 API quota limit reached. Please wait a bit and try again!"
         return f"⚠️ Gemini error: {str(e)}"
-
-def toggle_slidebar():
-    st.session_state.slidebar_open = not st.session_state.slidebar_open
-    st.rerun()
-
-def swap_slidebar_position():
-    st.session_state.slidebar_position = "left" if st.session_state.slidebar_position == "right" else "right"
-    st.rerun()
 
 # --- INIT DEFAULT CHAT --- #
 if not st.session_state.chat_sessions:
@@ -71,7 +58,7 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
     font-family: 'Inter', sans-serif;
 }
 
-/* Hide default Streamlit elements */
+/* Hide Streamlit header elements */
 [data-testid="stHeader"],
 [data-testid="stToolbar"],
 [data-testid="stDecoration"],
@@ -79,6 +66,10 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
 [data-testid="stAppViewContainer"] > header,
 .stApp > header {
     display: none !important;
+    visibility: hidden !important;
+    height: 0px !important;
+    padding: 0px !important;
+    margin: 0px !important;
 }
 
 .block-container {
@@ -87,12 +78,12 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
     padding-right: 0px !important;
 }
 
-/* Custom Header */
+/* Custom Header Styling */
 .custom-header {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    padding: 15px;
+    padding: 10px 15px;
     background-color: #000000;
     position: sticky;
     top: 0;
@@ -100,11 +91,32 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
     color: white;
     border-bottom: 1px solid #1a1a1a;
 }
+.header-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    min-width: 44px;
+    min-height: 44px;
+    box-sizing: border-box;
+}
+.header-item:hover {
+    background-color: #1a1a1a;
+    color: #cccccc;
+}
+.header-icon {
+    font-size: 24px;
+}
 .header-title {
     font-size: 18px;
     font-weight: 500;
-    text-align: center;
-    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
 }
 
 /* Chat Message Container */
@@ -164,7 +176,7 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
     color: #aaaaaa;
 }
 
-/* Input bar */
+/* Input bar styling */
 [data-testid="stChatInput"] {
     position: fixed;
     bottom: 0;
@@ -179,109 +191,28 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
     justify-content: center;
     align-items: center;
 }
-[data-testid="stChatInput"] > div > label + div {
-    background: #1f1f1f;
-    border-radius: 30px;
-    border: 1px solid #333333;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
-    max-width: 760px;
-    width: 100%;
-    padding: 0;
-}
-[data-testid="stChatInput"] textarea {
-    background: transparent !important;
-    border: none !important;
-    outline: none !important;
-    color: white !important;
-    font-size: 16px !important;
-    padding: 12px 15px !important;
-    line-height: 1.5 !important;
-    resize: none !important;
-}
-[data-testid="stChatInput"] textarea::placeholder {
-    color: #888 !important;
-}
-[data-testid="stChatInput"] button {
-    background-color: #2563eb !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 50% !important;
-    width: 44px !important;
-    height: 44px !important;
-    min-width: 44px !important;
-    font-size: 20px !important;
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    margin-left: 8px !important;
-    padding: 0 !important;
-    cursor: pointer !important;
-    transition: background-color 0.2s ease, transform 0.1s ease !important;
-    flex-shrink: 0 !important;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.4) !important;
+
+/* Sidebar styling */
+[data-testid="stSidebar"] {
+    background-color: #0d0d0d;
+    color: white;
+    padding-top: 10px;
 }
 
-/* Slidebar styles */
-.slidebar-container {
-    position: fixed;
-    top: 0;
-    width: 300px;
-    height: 100vh;
-    background-color: #0d0d0d;
-    z-index: 999;
-    transition: transform 0.3s ease;
-    padding-top: 60px;
-    overflow-y: auto;
-}
-.slidebar-left {
-    left: 0;
-    transform: translateX(-100%);
-}
-.slidebar-right {
-    right: 0;
-    transform: translateX(100%);
-}
-.slidebar-open {
-    transform: translateX(0) !important;
-}
-.slidebar-toggle {
-    position: fixed;
-    top: 15px;
-    z-index: 1000;
-    background: #2563eb;
-    color: white;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
-}
-.toggle-left {
-    left: 15px;
-}
-.toggle-right {
-    right: 15px;
-}
-.slidebar-content {
-    padding: 20px;
-}
-.slidebar-content button {
-    width: 100%;
-    margin-bottom: 15px;
+[data-testid="stSidebar"] .stButton > button {
     background-color: #2563eb;
     color: white;
-    border: none;
-    padding: 10px;
     border-radius: 8px;
-    cursor: pointer;
+    padding: 10px 15px;
+    width: 100%;
+    margin-bottom: 10px;
+    font-size: 16px;
+    transition: background-color 0.2s ease;
 }
-.sidebar-chat-item-container {
-    margin-bottom: 5px;
+[data-testid="stSidebar"] .stButton > button:hover {
+    background-color: #1a56c7;
 }
+
 .sidebar-chat-item {
     padding: 10px 15px;
     border-radius: 5px;
@@ -301,65 +232,122 @@ body, .main, .block-container, [data-testid="stAppViewContainer"] {
 </style>
 """, unsafe_allow_html=True)
 
-# --- Custom Header HTML ---
-st.markdown(f"""
-<div class="custom-header">
-    <div class="header-title">{active_chat["title"]}</div>
-</div>
-""", unsafe_allow_html=True)
-
-# --- SLIDEBAR TOGGLE BUTTON --- #
-toggle_position = "toggle-left" if st.session_state.slidebar_position == "left" else "toggle-right"
-st.markdown(f"""
-<div class="slidebar-toggle {toggle_position}" id="slidebar-toggle-button">
-    ☰
-</div>
-""", unsafe_allow_html=True)
-
-# --- SLIDEBAR CONTENT --- #
-slidebar_class = f"slidebar-{st.session_state.slidebar_position}"
-if st.session_state.slidebar_open:
-    slidebar_class += " slidebar-open"
-
-with st.container():
-    st.markdown(f"""
-    <div class="slidebar-container {slidebar_class}">
-        <div class="slidebar-content">
-            <h3 style="color: white; margin-bottom: 20px;">Chat History</h3>
-    """, unsafe_allow_html=True)
-    
-    if st.button("Swap Side (←→)", key="swap_side_button"):
-        swap_slidebar_position()
-    
-    if st.button("➕ Start New Chat", key="new_chat_button"):
+# --- SIDEBAR CONTENT --- #
+with st.sidebar:
+    st.markdown("## Chat History")
+    if st.button("➕ Start New Chat", key="sidebar_new_chat_button", use_container_width=True):
         new_chat()
-    
-    st.markdown("<div class='sidebar-chat-list'>", unsafe_allow_html=True)
-    
+
+    st.markdown("---")
+
     if st.session_state.chat_sessions:
-        sorted_chat_ids = sorted(st.session_state.chat_sessions.keys())
+        sorted_chat_ids = sorted(st.session_state.chat_sessions.keys(),
+                                 key=lambda x: st.session_state.chat_sessions[x].get('last_updated', x),
+                                 reverse=True)
+
         for chat_id in sorted_chat_ids:
             chat_data = st.session_state.chat_sessions[chat_id]
-            is_active = "active" if chat_id == st.session_state.active_chat else ""
+            is_active = chat_id == st.session_state.active_chat
+            
             if st.button(
                 chat_data['title'],
-                key=f"chat_{chat_id}",
-                help=f"Switch to {chat_data['title']}"
+                key=f"sidebar_chat_select_{chat_id}",
+                help="Switch to this chat",
+                use_container_width=True
             ):
                 switch_chat(chat_id)
+                streamlit_js_eval(js_expressions="parent.document.querySelector('[data-testid=\"stSidebarToggleButton\"]').click()")
     else:
-        st.markdown("<p style='color: #888;'>No chats yet. Start a new one!</p>", unsafe_allow_html=True)
-    
-    st.markdown("</div></div></div>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #888;'>No chats yet. Start a new one!</p>")
 
-# JavaScript for toggle button
-components.html(f"""
+# --- Custom Header ---
+st.markdown(f"""
+<div class="custom-header">
+    <div class="header-item" id="header-sidebar-toggle">
+        <div class="header-icon">☰</div>
+    </div>
+    <div class="header-item" id="header-chat-title">
+        <div class="header-title">{active_chat["title"]}</div>
+    </div>
+    <div class="header-item" id="header-new-chat-button">
+        <div class="header-icon">+</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# --- JavaScript for Header Interactivity ---
+streamlit_js_eval(js_expressions="""
+    function addClickListener(elementId, callback) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.addEventListener('click', callback);
+            element.addEventListener('touchend', function(event) {
+                event.preventDefault();
+                callback();
+            });
+        }
+    }
+
+    // Toggle sidebar
+    addClickListener('header-sidebar-toggle', function() {
+        const sidebarToggleButton = window.parent.document.querySelector('[data-testid="stSidebarToggleButton"]');
+        if (sidebarToggleButton) {
+            sidebarToggleButton.click();
+        }
+    });
+
+    // New chat button
+    addClickListener('header-new-chat-button', function() {
+        // Create a custom event to trigger new chat
+        const event = new CustomEvent('newChatRequested', { detail: {} });
+        window.dispatchEvent(event);
+    });
+
+    // Chat title click (optional)
+    addClickListener('header-chat-title', function() {
+        const event = new CustomEvent('chatTitleClicked', { detail: {} });
+        window.dispatchEvent(event);
+    });
+""", key="header_js_injector", all_scopes=True)
+
+# --- Event Listeners for Custom Events ---
+st.markdown("""
 <script>
-document.getElementById('slidebar-toggle-button').addEventListener('click', function() {{
-    window.parent.document.dispatchEvent(new CustomEvent('TOGGLE_SLIDEBAR'));
-}});
+    window.addEventListener('newChatRequested', function() {
+        // Send message to Streamlit
+        window.parent.postMessage({type: 'NEW_CHAT_REQUEST'}, '*');
+    });
+    
+    window.addEventListener('chatTitleClicked', function() {
+        // Send message to Streamlit
+        window.parent.postMessage({type: 'CHAT_TITLE_CLICK'}, '*');
+    });
 </script>
-""", height=0)
+""", unsafe_allow_html=True)
+
+# --- Handle custom events from JavaScript ---
+if 'NEW_CHAT_REQUEST' in st.session_state.get('events', []):
+    new_chat()
+    st.session_state.events.remove('NEW_CHAT_REQUEST')
+
+if 'CHAT_TITLE_CLICK' in st.session_state.get('events', []):
+    st.toast(f"You clicked on: '{active_chat['title']}'", icon="ℹ️")
+    st.session_state.events.remove('CHAT_TITLE_CLICK')
+
+# Listen to postMessage events
+components.html("""
+<script>
+    window.addEventListener("message", (event) => {
+        if (event.data.type === "NEW_CHAT_REQUEST") {
+            // Send to Streamlit
+            window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'NEW_CHAT_REQUEST'}, '*');
+        }
+        else if (event.data.type === "CHAT_TITLE_CLICK") {
+            window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'CHAT_TITLE_CLICK'}, '*');
+        }
+    });
+</script>
+""", height=0, width=0)
 
 # --- WELCOME MESSAGE / CHAT MESSAGES --- #
 if len(active_chat["messages"]) == 0:
@@ -385,7 +373,6 @@ if user_input:
     active_chat["messages"].append({"role": "user", "content": user_input.strip()})
     response = generate_reply(user_input.strip())
     active_chat["messages"].append({"role": "assistant", "content": response})
-
     active_chat['last_updated'] = str(uuid.uuid4())
 
     user_message_count = len([m for m in active_chat["messages"] if m["role"] == "user"])
