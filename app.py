@@ -1,13 +1,12 @@
 import streamlit as st
 import uuid
 import google.generativeai as genai
-from streamlit_js_eval import streamlit_js_eval # This is essential for robust JS interaction
+from streamlit_js_eval import streamlit_js_eval
 
 # --- CONFIG --- #
-st.set_page_config(page_title="WiseBuddy 🤖", layout="wide", initial_sidebar_state="collapsed") # Start collapsed
+st.set_page_config(page_title="WiseBuddy 🤖", layout="wide", initial_sidebar_state="collapsed")
 
 # --- GEMINI API --- #
-# Assuming GEMINI_API_KEY is correctly set in st.secrets
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel("models/gemini-1.5-pro")
 
@@ -23,11 +22,11 @@ def new_chat():
         "messages": []
     }
     st.session_state.active_chat = chat_id
-    st.rerun() # Rerun to display new chat
+    st.rerun()
 
 def switch_chat(chat_id):
     st.session_state.active_chat = chat_id
-    st.rerun() # Rerun to display switched chat
+    st.rerun()
 
 def rename_chat(chat_id, title):
     st.session_state.chat_sessions[chat_id]["title"] = title
@@ -52,222 +51,221 @@ active_chat = st.session_state.chat_sessions[active_id]
 # --- STYLING --- #
 st.markdown("""
 <style>
-/* Base styling for the entire app */
+/* Base styling */
 body, .main, .block-container, [data-testid="stAppViewContainer"] {
-    background-color: #000000 !important; /* Deep black background */
+    background-color: #000000 !important;
     color: white !important;
-    font-family: 'Inter', sans-serif; /* Using Inter font for a modern look */
+    font-family: 'Inter', sans-serif;
 }
 
-/* --- HIDE ALL DEFAULT STREAMLIT HEADER ELEMENTS - MORE AGGRESSIVE --- */
-/* Target specific data-testids used by Streamlit for its header/toolbar */
+/* Hide default Streamlit elements */
 [data-testid="stHeader"],
 [data-testid="stToolbar"],
 [data-testid="stDecoration"],
-[data-testid="stSidebarHeader"], /* In case a sidebar header is showing */
-/* Target the actual header HTML element within the app view */
+[data-testid="stSidebarHeader"],
 [data-testid="stAppViewContainer"] > header,
 .stApp > header {
     display: none !important;
-    visibility: hidden !important; /* Extra measure to ensure it's gone */
-    height: 0px !important; /* Collapse its height */
-    padding: 0px !important; /* Remove any padding */
-    margin: 0px !important; /* Remove any margin */
 }
 
-/* Ensure the main content block starts at the very top */
 .block-container {
     padding-top: 0px !important;
     padding-left: 0px !important;
     padding-right: 0px !important;
 }
 
-/* Custom Header Styling - ENHANCED */
+/* Custom Header */
 .custom-header {
     display: flex;
-    justify-content: center; /* Center the title now */
+    justify-content: center;
     align-items: center;
-    padding: 10px 15px; /* Slightly less vertical padding, more horizontal */
+    padding: 15px;
     background-color: #000000;
-    position: sticky; /* Keeps the header at the top when scrolling */
+    position: sticky;
     top: 0;
     z-index: 1000;
     color: white;
-    border-bottom: 1px solid #1a1a1a; /* Subtle border for separation */
-    height: 60px; /* Fixed height for header */
+    border-bottom: 1px solid #1a1a1a;
 }
-/* Removed header-item styles for ☰ and + */
 .header-title {
     font-size: 18px;
     font-weight: 500;
-    white-space: nowrap; /* Prevent "New chat" from wrapping */
-    overflow: hidden;
-    text-overflow: ellipsis; /* Add ellipsis for long titles */
-    max-width: 200px; /* Wider limit for centered title */
-    text-align: center; /* Center the text within its div */
+    text-align: center;
+    width: 100%;
 }
 
 /* Chat Message Container */
 .chat-container {
-    padding-bottom: 120px; /* Space for the fixed input bar at the bottom */
-    padding-top: 20px; /* Space below the header */
-    max-width: 800px; /* Max width for readability on large screens */
-    margin: 0 auto; /* Center the chat container */
-    padding-left: 15px; /* Padding for mobile */
-    padding-right: 15px; /* Padding for mobile */
+    padding-bottom: 120px;
+    padding-top: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+    padding-left: 15px;
+    padding-right: 15px;
 }
 .message {
-    max-width: 75%; /* Slightly wider message bubbles */
-    padding: 12px 18px; /* More padding inside bubbles */
-    border-radius: 22px; /* Slightly more rounded corners */
+    max-width: 75%;
+    padding: 12px 18px;
+    border-radius: 22px;
     margin: 10px 0;
     font-size: 16px;
     line-height: 1.5;
     word-wrap: break-word;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2); /* Subtle shadow for depth */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 .user {
-    background-color: #1a1a1a; /* Darker grey for user messages */
+    background-color: #1a1a1a;
     margin-left: auto;
     text-align: right;
-    border-bottom-right-radius: 8px; /* Asymmetrical rounding */
+    border-bottom-right-radius: 8px;
 }
 .bot {
-    background-color: #282828; /* Slightly lighter grey for bot messages */
+    background-color: #282828;
     margin-right: auto;
     text-align: left;
-    border-bottom-left-radius: 8px; /* Asymmetrical rounding */
+    border-bottom-left-radius: 8px;
 }
 
-/* Welcome Message Styling */
+/* Welcome Message */
 .welcome-message {
     text-align: center;
-    margin-top: 25vh; /* Vertically center initially */
+    margin-top: 25vh;
     color: gray;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 0 20px; /* Ensure padding on small screens */
+    padding: 0 20px;
 }
 .welcome-message img {
-    filter: drop-shadow(0 0 10px rgba(0, 150, 255, 0.4)); /* Glow effect for the emoji */
+    filter: drop-shadow(0 0 10px rgba(0, 150, 255, 0.4));
 }
 .welcome-message h3 {
     color: white;
     margin-top: 15px;
     margin-bottom: 5px;
-    font-size: 26px; /* Slightly larger heading */
+    font-size: 26px;
 }
 .welcome-message p {
-    font-size: 17px; /* Slightly larger text */
+    font-size: 17px;
     color: #aaaaaa;
 }
 
-/* --- ST.CHAT_INPUT Styling (Crucial for the correct input bar) --- */
-/* This targets the container for st.chat_input */
+/* Input bar */
 [data-testid="stChatInput"] {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    background-color: #000000; /* Match body background */
+    background-color: #000000;
     padding: 15px 20px;
     border-top: 1px solid #1a1a1a;
     z-index: 1000;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.5); /* Shadow for lift-off effect */
-    display: flex; /* Ensure its content is centered */
-    justify-content: center; /* Center the input field itself */
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
     align-items: center;
 }
-
-/* Target the actual input field within st.chat_input */
-[data-testid="stChatInput"] > div > label + div { /* Selects the div containing the text input and button */
-    background: #1f1f1f; /* Background for the input area itself */
-    border-radius: 30px; /* Highly rounded corners */
-    border: 1px solid #333333; /* A more prominent, but subtle border */
+[data-testid="stChatInput"] > div > label + div {
+    background: #1f1f1f;
+    border-radius: 30px;
+    border: 1px solid #333333;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3); /* Inner shadow for depth */
-    max-width: 760px; /* Max width for the input field to match chat container */
-    width: 100%; /* Take full width within its flex container */
-    padding: 0; /* Remove internal padding from streamlit's default */
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+    max-width: 760px;
+    width: 100%;
+    padding: 0;
 }
-
-/* Focus style for the input field */
-[data-testid="stChatInput"] > div > label + div:focus-within {
-    border-color: #2563eb; /* Blue border on focus */
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 0 3px rgba(37, 99, 235, 0.3); /* Outer glow */
-}
-
-/* Target the text input itself */
 [data-testid="stChatInput"] textarea {
     background: transparent !important;
     border: none !important;
     outline: none !important;
     color: white !important;
     font-size: 16px !important;
-    padding: 12px 15px !important; /* More padding inside the text input */
+    padding: 12px 15px !important;
     line-height: 1.5 !important;
-    resize: none !important; /* Prevent manual resizing */
+    resize: none !important;
 }
-
-/* Placeholder color */
 [data-testid="stChatInput"] textarea::placeholder {
     color: #888 !important;
 }
-
-/* Target the send button within st.chat_input */
 [data-testid="stChatInput"] button {
-    background-color: #2563eb !important; /* Blue send button */
+    background-color: #2563eb !important;
     color: white !important;
     border: none !important;
-    border-radius: 50% !important; /* Circular button */
-    width: 44px !important; /* Slightly larger button */
-    height: 44px !important; /* Slightly larger button */
-    min-width: 44px !important; /* Prevent it from shrinking */
-    font-size: 20px !important; /* Larger icon */
+    border-radius: 50% !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    font-size: 20px !important;
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
-    margin-left: 8px !important; /* Space between input and button */
+    margin-left: 8px !important;
     padding: 0 !important;
     cursor: pointer !important;
     transition: background-color 0.2s ease, transform 0.1s ease !important;
     flex-shrink: 0 !important;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.4) !important; /* Shadow for the button */
-}
-[data-testid="stChatInput"] button:hover {
-    background-color: #1a56c7 !important; /* Darker blue on hover */
-    transform: translateY(-1px) !important; /* Slight lift effect */
-}
-[data-testid="stChatInput"] button:active {
-    transform: translateY(0) !important; /* Press effect */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4) !important;
 }
 
-/* Ensure no default Streamlit forms are interfering if not explicitly used */
-div.stForm { display: none; }
-
-/* Sidebar styling */
-[data-testid="stSidebar"] {
-    background-color: #0d0d0d; /* Darker sidebar background */
+/* Slidebar styles */
+.slidebar-container {
+    position: fixed;
+    top: 0;
+    width: 300px;
+    height: 100vh;
+    background-color: #0d0d0d;
+    z-index: 999;
+    transition: transform 0.3s ease;
+    padding-top: 60px;
+    overflow-y: auto;
+}
+.slidebar-left {
+    left: 0;
+    transform: translateX(-100%);
+}
+.slidebar-right {
+    right: 0;
+    transform: translateX(100%);
+}
+.slidebar-open {
+    transform: translateX(0) !important;
+}
+.slidebar-toggle {
+    position: fixed;
+    top: 15px;
+    z-index: 1000;
+    background: #2563eb;
     color: white;
-    padding-top: 10px; /* Space from top */
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
 }
-
-[data-testid="stSidebar"] .stButton > button {
+.toggle-left {
+    left: 15px;
+}
+.toggle-right {
+    right: 15px;
+}
+.slidebar-content {
+    padding: 20px;
+}
+.slidebar-content button {
+    width: 100%;
+    margin-bottom: 15px;
     background-color: #2563eb;
     color: white;
+    border: none;
+    padding: 10px;
     border-radius: 8px;
-    padding: 10px 15px;
-    width: 100%;
-    margin-bottom: 10px;
-    font-size: 16px;
-    transition: background-color 0.2s ease;
+    cursor: pointer;
 }
-[data-testid="stSidebar"] .stButton > button:hover {
-    background-color: #1a56c7;
-}
-
 .sidebar-chat-item-container {
     margin-bottom: 5px;
 }
@@ -277,7 +275,7 @@ div.stForm { display: none; }
     cursor: pointer;
     transition: background-color 0.2s ease;
     word-wrap: break-word;
-    color: white; /* Ensure text color is white */
+    color: white;
 }
 .sidebar-chat-item:hover {
     background-color: #1a1a1a;
@@ -285,64 +283,120 @@ div.stForm { display: none; }
 .sidebar-chat-item.active {
     background-color: #282828;
     border-left: 3px solid #2563eb;
-    padding-left: 12px; /* Adjust for border */
+    padding-left: 12px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# --- SIDEBAR CONTENT --- #
-with st.sidebar:
-    st.markdown("## Chat History")
-    # The "New Chat" button remains in the sidebar for easy access
-    if st.button("➕ Start New Chat", key="sidebar_new_chat_button", use_container_width=True):
-        new_chat()
+# --- SLIDEBAR STATE --- #
+if "slidebar_position" not in st.session_state:
+    st.session_state.slidebar_position = "right"
+if "slidebar_open" not in st.session_state:
+    st.session_state.slidebar_open = False
 
-    st.markdown("---") # Separator
+def toggle_slidebar():
+    st.session_state.slidebar_open = not st.session_state.slidebar_open
+    st.rerun()
 
-    if st.session_state.chat_sessions:
-        sorted_chat_ids = sorted(st.session_state.chat_sessions.keys(),
-                                 key=lambda x: st.session_state.chat_sessions[x].get('last_updated', x),
-                                 reverse=True)
+def swap_slidebar_position():
+    st.session_state.slidebar_position = "left" if st.session_state.slidebar_position == "right" else "right"
+    st.rerun()
 
-        for chat_id in sorted_chat_ids:
-            chat_data = st.session_state.chat_sessions[chat_id]
-            is_active = " active" if chat_id == st.session_state.active_chat else ""
-
-            if st.button(
-                chat_data['title'],
-                key=f"sidebar_chat_select_{chat_id}",
-                help="Switch to this chat",
-                use_container_width=True
-            ):
-                switch_chat(chat_id)
-                # Attempt to close sidebar after switching
-                # This should still work as before for explicit closing
-                streamlit_js_eval(js_expressions="parent.document.querySelector('[data-testid=\"stSidebarToggleButton\"]').click()")
-    else:
-        st.markdown("<p style='color: #888;'>No chats yet. Start a new one!</p>")
-
-# --- Custom Header HTML (Simplified) ---
-# Only includes the chat title, centered
+# --- Custom Header HTML ---
 st.markdown(f"""
 <div class="custom-header">
     <div class="header-title">{active_chat["title"]}</div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- No JavaScript for header interactivity needed if only title is there ---
-# No more `streamlit_js_eval` calls for header items if they are removed.
-# If you later decide to make the title clickable, you'd reintroduce the JS for it.
+# --- SLIDEBAR TOGGLE BUTTON --- #
+toggle_position = "toggle-left" if st.session_state.slidebar_position == "left" else "toggle-right"
+st.markdown(f"""
+<div class="slidebar-toggle {toggle_position}" id="slidebar-toggle-button">
+    ☰
+</div>
+""", unsafe_allow_html=True)
 
+# Generate slidebar content
+slidebar_html = """
+<div class="slidebar-content">
+    <h3 style="color: white; margin-bottom: 20px;">Chat History</h3>
+    <button onclick="swapPosition()" style="background-color: #333; margin-bottom: 20px;">
+        Swap Side (←→)
+    </button>
+"""
 
-# --- Python logic for header interactions (mostly removed or moved) ---
-# Removed Python logic for hidden_sidebar_toggle_btn and hidden_new_chat_btn
-# as their corresponding header items are gone.
-# Keep the chat title click logic if you want the title itself to be interactive.
-# If you don't want the title to be clickable, remove the 'chat_title_header_clicked' logic entirely.
-if st.session_state.get('chat_title_header_clicked', False):
-    st.toast(f"You clicked on the chat title: '{active_chat['title']}'", icon="ℹ️")
-    st.session_state['chat_title_header_clicked'] = False
+if st.button("➕ Start New Chat", key="slidebar_new_chat_button"):
+    new_chat()
 
+slidebar_html += "<div class='sidebar-chat-list'>"
+
+if st.session_state.chat_sessions:
+    sorted_chat_ids = sorted(st.session_state.chat_sessions.keys())
+    for chat_id in sorted_chat_ids:
+        chat_data = st.session_state.chat_sessions[chat_id]
+        is_active = "active" if chat_id == st.session_state.active_chat else ""
+        slidebar_html += f"""
+        <div class="sidebar-chat-item-container">
+            <div class="sidebar-chat-item {is_active}" onclick="switchChat('{chat_id}')">
+                {chat_data['title']}
+            </div>
+        </div>
+        """
+else:
+    slidebar_html += "<p style='color: #888;'>No chats yet. Start a new one!</p>"
+
+slidebar_html += "</div></div>"
+
+# --- SLIDEBAR CONTAINER --- #
+slidebar_class = f"slidebar-{st.session_state.slidebar_position}"
+if st.session_state.slidebar_open:
+    slidebar_class += " slidebar-open"
+
+st.markdown(f"""
+<div class="slidebar-container {slidebar_class}">
+    {slidebar_html}
+</div>
+""", unsafe_allow_html=True)
+
+# JavaScript for interactions
+streamlit_js_eval(js_expressions="""
+// Toggle slidebar
+document.getElementById('slidebar-toggle-button').addEventListener('click', function() {
+    if (window.streamlit) {
+        streamlit.setComponentValue('toggle_slidebar', true);
+    }
+});
+
+// Swap position function
+window.swapPosition = function() {
+    if (window.streamlit) {
+        streamlit.setComponentValue('swap_slidebar_position', true);
+    }
+};
+
+// Switch chat function
+window.switchChat = function(chatId) {
+    if (window.streamlit) {
+        streamlit.setComponentValue('switch_to_chat_' + chatId, true);
+    }
+};
+""", key="slidebar_js", all_scopes=True)
+
+# Handle slidebar actions
+if st.session_state.get('toggle_slidebar'):
+    toggle_slidebar()
+    st.session_state.toggle_slidebar = False
+
+if st.session_state.get('swap_slidebar_position'):
+    swap_slidebar_position()
+    st.session_state.swap_slidebar_position = False
+
+# Handle chat switching
+for chat_id in st.session_state.chat_sessions.keys():
+    if st.session_state.get(f'switch_to_chat_{chat_id}'):
+        switch_chat(chat_id)
+        st.session_state[f'switch_to_chat_{chat_id}'] = False
 
 # --- WELCOME MESSAGE / CHAT MESSAGES --- #
 if len(active_chat["messages"]) == 0:
