@@ -47,8 +47,9 @@ if not st.session_state.chat_sessions:
 active_id = st.session_state.active_chat
 active_chat = st.session_state.chat_sessions[active_id]
 
-# ---------------- LOAD CSS ----------------
-st.markdown(open("styles.css").read(), unsafe_allow_html=True)
+# ---------------- LOAD CSS (fixed) ----------------
+with open("styles.css") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
@@ -67,9 +68,7 @@ with st.sidebar:
 # ---------------- HEADER ----------------
 st.markdown(f"""
 <div class="custom-header">  
-    <div class="header-item" onclick="window.parent.document.querySelector('[data-testid=\\\"stSidebar\\\"] button').click()">
-        ☰
-    </div>  
+    <div class="header-item" onclick="window.parent.document.querySelector('[data-testid=\\\"stSidebar\\\"] button').click()">☰</div>  
     <div class="header-item header-title">{active_chat['title']}</div>  
     <div class="header-item" onclick="window.parent.location.reload()">+</div>  
 </div>
